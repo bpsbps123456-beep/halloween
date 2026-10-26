@@ -286,9 +286,6 @@
     kit.box(0.04, 0.03, 0.06, 0.1, 0.96, 4.4, lam(0xffd166));
     // 시계·달력·시간표·TV
     poster(kit, 'clock', () => X.clock(11, 47), 0.5, 0.5, 0.03, 2.55, 3.75, Math.PI / 2);
-    // 급훈 액자 (칠판 위, 시계 옆)
-    const mottoM = L.own(new T.MeshLambertMaterial({ map: L.own(texFrom(X.motto(run.motto || '서로 돕고 함께 웃자'))) }));
-    board(L, mottoM, 1.7, 0.42, 0.04, 2.6, 2.25, Math.PI / 2);
     poster(kit, 'calendar', () => X.calendar(), 0.5, 0.58, 0.03, 1.55, 0.98, Math.PI / 2);
     poster(kit, 'timetable-' + run.myClass + run.teacher, () => X.timetable(run.myClass, run.teacher), 0.8, 0.8, 8.98, 1.75, 6.2, -Math.PI / 2);
     kit.box(0.08, 0.68, 1.15, 0.05, 2.0, 6.4, M.black);
@@ -380,6 +377,9 @@
     L.collide(8.55, 0.98, 9, 6.92);
     const env = tmat('bulletin-class', () => X.bulletin(44, '우리 반 할로윈', true), { clamp: true });
     kit.panel(4.2, 1.15, 8.98, 1.85, 3.0, -Math.PI / 2, env);
+    // 교실 뒤 문구 (환경판 위 긴 현수막)
+    const mottoM = L.own(new T.MeshLambertMaterial({ map: L.own(texFrom(X.motto(run.motto || '서로 돕고 함께 웃자'))) }));
+    board(L, mottoM, 3.9, 0.46, 8.97, 2.72, 3.0, -Math.PI / 2);
     // 창가: 커튼, 학급 문고, 화분
     winHoles.forEach((hl) => {
       curtain(kit, hl.a + 0.2, D - 0.1, 1.75, Math.PI);

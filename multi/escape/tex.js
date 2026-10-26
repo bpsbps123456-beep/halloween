@@ -885,18 +885,21 @@
     return c;
   };
 
-  /** 급훈 액자 */
+  /** 교실 뒤 문구 (긴 현수막) */
   X.motto = function (text) {
-    const c = make(1024, 256);
+    const c = make(2048, 242);
     const g = c.getContext('2d');
     const r = rand(17);
-    g.fillStyle = '#5a3b22';
-    g.fillRect(0, 0, 1024, 256);
-    g.fillStyle = '#fbf7ea';
-    g.fillRect(18, 18, 988, 220);
-    speckle(g, 1024, 256, 300, ['#d8d0b8'], r, 2, 0.3);
-    txt(g, '급 훈', 512, 54, 28, '#c0392b');
-    txt(g, text, 512, 150, 84, '#1b2233', { font: DISPLAY(), maxW: 940 });
+    g.fillStyle = '#e8743b';
+    g.fillRect(0, 0, 2048, 242);
+    g.fillStyle = '#fffaf0';
+    g.fillRect(14, 14, 2020, 214);
+    speckle(g, 2048, 242, 400, ['#efe4cc'], r, 2, 0.3);
+    ['#ffd166', '#9ff0d8', '#ff9ac1'].forEach((col, i) => {
+      txt(g, '★', 80 + i * 22, 70 + i * 50, 40, col);
+      txt(g, '★', 1968 - i * 22, 70 + i * 50, 40, col);
+    });
+    txt(g, text, 1024, 126, 128, '#1b2233', { font: DISPLAY(), maxW: 1760 });
     return c;
   };
 
