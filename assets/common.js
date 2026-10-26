@@ -37,13 +37,16 @@
       const rows = HG.store.get('board:' + game, []);
       return Array.isArray(rows) ? rows.filter((r) => r && typeof r.score === 'number') : [];
     },
-    qualifies(game, score) {
+    /** asc = true 이면 작은 점수(빠른 시간)가 1등입니다. */
+    qualifies(game, score, asc) {
       if (!(score > 0)) return false;
       const rows = this.list(game);
-      return rows.length < BOARD_SIZE || score > rows[rows.length - 1].score;
+      if (rows.length < BOARD_SIZE) return true;
+      const last = rows[rows.length - 1].score;
+      return asc ? score < last : score > last;
     },
     /** 기록을 넣고 순위(0부터)를 돌려줍니다. 10위 밖이면 -1. */
-    add(game, name, score, extra) {
+    add(game, name, score, extra, asc) {
       const rows = this.list(game);
       const entry = Object.assign({}, extra || {}, {
         name: String(name || '').trim().slice(0, 8) || '이름 없음',
@@ -51,7 +54,7 @@
         at: Date.now(),
       });
       rows.push(entry);
-      rows.sort((a, b) => b.score - a.score || a.at - b.at);
+      rows.sort((a, b) => (asc ? a.score - b.score : b.score - a.score) || a.at - b.at);
       const top = rows.slice(0, BOARD_SIZE);
       HG.store.set('board:' + game, top);
       return top.indexOf(entry);
@@ -68,9 +71,9 @@
       const v = HG.store.get('best:' + game, 0);
       return typeof v === 'number' ? v : 0;
     },
-    submit(game, score) {
+    submit(game, score, asc) {
       const prev = this.get(game);
-      if (score > prev) {
+      if (prev === 0 || (asc ? score < prev : score > prev)) {
         HG.store.set('best:' + game, score);
         return true;
       }
@@ -105,7 +108,7 @@
 
   /** 결과 화면: 10위 안이면 이름을 받아 명예의 전당에 올립니다. */
   HG.setupResultBoard = function (o) {
-    const qualifies = HG.board.qualifies(o.game, o.score);
+    const qualifies = HG.board.qualifies(o.game, o.score, o.asc);
     o.form.hidden = !qualifies;
     HG.renderBoard(o.list, o.game, o.format, -1);
     o.form.onsubmit = (e) => {
@@ -116,14 +119,14 @@
         return;
       }
       HG.store.set('lastName', name);
-      const rank = HG.board.add(o.game, name, o.score, o.extra);
+      const rank = HG.board.add(o.game, name, o.score, o.extra, o.asc);
       o.form.hidden = true;
       HG.renderBoard(o.list, o.game, o.format, rank);
       HG.sound.play('gold');
       if (o.onSaved) o.onSaved(rank);
     };
     if (qualifies) {
-      o.input.value = HG.store.get('lastName', '');
+      o.input.value = o.name != null ? o.name : HG.store.get('lastName', '');
       // 마우스가 있는 컴퓨터에서만 바로 입력할 수 있게 둡니다 (태블릿은 자판이 갑자기 뜨지 않게)
       if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
         setTimeout(() => {
@@ -292,6 +295,22 @@
       },
       whoosh: () => noise({ f: 700, to: 2600, dur: 0.18, vol: 0.07, q: 2 }),
       boo: () => tone({ type: 'sine', f: 330, to: 220, dur: 1.1, vol: 0.18, attack: 0.15, vib: { rate: 5, depth: 25 } }),
+      whistle: () => {
+        tone({ type: 'square', f: 2300, dur: 0.18, vol: 0.06, lowpass: 4000, vib: { rate: 40, depth: 120 } });
+        tone({ type: 'square', f: 2300, dur: 0.45, vol: 0.06, at: 0.22, lowpass: 4000, vib: { rate: 40, depth: 120 } });
+      },
+      step: () => noise({ type: 'lowpass', f: 500, dur: 0.06, vol: 0.12 }),
+      heart: () => {
+        tone({ type: 'sine', f: 70, to: 45, dur: 0.12, vol: 0.4 });
+        tone({ type: 'sine', f: 65, to: 42, dur: 0.12, vol: 0.3, at: 0.18 });
+      },
+      creak: () => tone({ type: 'sawtooth', f: 180, to: 320, dur: 0.35, vol: 0.05, lowpass: 900, vib: { rate: 18, depth: 20 } }),
+      unlock: () => {
+        noise({ type: 'highpass', f: 3000, dur: 0.05, vol: 0.15 });
+        tone({ type: 'triangle', f: 880, dur: 0.08, vol: 0.12, at: 0.06 });
+        tone({ type: 'triangle', f: 1320, dur: 0.12, vol: 0.12, at: 0.13 });
+      },
+      wrong: () => tone({ type: 'square', f: 160, dur: 0.25, vol: 0.08, lowpass: 900 }),
     };
 
     /* 배경음: 16분음표 단위로 조금씩 앞서 예약합니다. */
@@ -331,6 +350,11 @@
     }
 
     return {
+      /** 음 하나 (midi 번호) */
+      note(midi, dur, type) {
+        tone({ type: type || 'triangle', f: N(midi), dur: dur || 0.4, vol: 0.18 });
+        tone({ type: 'sine', f: N(midi + 12), dur: (dur || 0.4) * 0.6, vol: 0.04 });
+      },
       play(name) {
         if (muted || !SFX[name]) return;
         try {

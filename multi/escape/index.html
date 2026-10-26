@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>동암초 탈출</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Kirang+Haerang&display=swap">
+<link rel="stylesheet" href="../../assets/common.css">
+<style>
+  .eyebrow { margin: 0; color: var(--text-dim); font-size: 0.85em; letter-spacing: 0.08em; }
+  .story { margin: 0; max-width: 30em; line-height: 1.55; text-wrap: pretty; }
+  .team-form { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.5em; }
+  .team-form label { color: var(--candle); }
+  .team-form input, .teacher input, .teacher select {
+    min-height: 2.4em; padding: 0.3em 0.7em; border: 0; border-radius: 0.6em;
+    background: var(--bg); box-shadow: inset 0 0 0 0.12em var(--line); color: var(--text); font-size: 1em;
+  }
+  .team-form input { width: 7em; text-align: center; }
+  .team-form input:focus-visible, .teacher input:focus-visible, .teacher select:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+
+  /* 진행 표시 */
+  .hud { position: absolute; top: 0.5em; right: 0.6em; display: flex; gap: 0.4em; align-items: center; z-index: 3; }
+  .hud-chip { padding: 0.25em 0.7em; border-radius: 999px; background: rgba(12, 8, 22, 0.78); font-size: 0.9em; white-space: nowrap; }
+  .hud-time { color: var(--candle); font-variant-numeric: tabular-nums; }
+  .hud-btn {
+    padding: 0.25em 0.8em; border: 0; border-radius: 999px; background: var(--pumpkin); color: var(--pumpkin-ink);
+    font: inherit; font-size: 0.9em; cursor: pointer; touch-action: manipulation;
+  }
+  .hud-btn:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+
+  /* 방 */
+  .room { position: absolute; inset: 0; pointer-events: none; }
+  .room > * { pointer-events: auto; }
+  .room-card {
+    position: absolute; left: 0.6em; top: 0.5em; max-width: 19em; padding: 0.5em 0.8em;
+    border-radius: 0.8em; background: rgba(12, 8, 22, 0.82);
+  }
+  .room-where { margin: 0; color: var(--mint); font-size: 0.8em; }
+  .room-title { margin: 0.1em 0; font-family: var(--font-display); font-weight: 400; font-size: 1.7em; line-height: 1.1; color: var(--pumpkin); }
+  .room-goal { margin: 0; font-size: 0.85em; line-height: 1.4; }
+  .room-foot { position: absolute; left: 0.6em; bottom: 0.6em; display: flex; align-items: flex-end; gap: 0.6em; max-width: 34em; pointer-events: none; }
+  .room-foot > * { pointer-events: auto; }
+  .room-foot > .bubble { pointer-events: none; }
+  .hint-btn { font-size: 0.85em; min-height: 2.3em; background: rgba(12, 8, 22, 0.85); }
+  .bubble {
+    margin: 0; padding: 0.5em 0.8em; border-radius: 0.9em 0.9em 0.9em 0.2em;
+    background: #f6f1ff; color: #2a1d3f; font-size: 0.9em; line-height: 1.4; max-width: 24em;
+  }
+  .puzzle { position: absolute; inset: 0; pointer-events: none; }
+  .puzzle > * { pointer-events: auto; }
+  .chip-big {
+    position: absolute; right: 0.7em; bottom: 0.7em;
+    padding: 0.35em 1em; border-radius: 999px; background: rgba(12, 8, 22, 0.85); font-size: 1.1em; white-space: nowrap;
+  }
+  .card {
+    position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; gap: 0.6em;
+    width: min(30em, 92%); padding: 0.9em 1.2em; border-radius: 1em;
+    background: rgba(18, 13, 28, 0.92); box-shadow: 0 0 0 0.12em var(--line), 0 1em 2em rgba(0, 0, 0, 0.45);
+    text-align: center;
+  }
+  .card .step { margin: 0; color: var(--text-dim); font-size: 0.85em; }
+  .shake { animation: shake 0.35s; }
+  @keyframes shake { 20%, 60% { transform: translate(calc(-50% - 0.4em), -50%); } 40%, 80% { transform: translate(calc(-50% + 0.4em), -50%); } }
+
+  /* 과학실 물약 병 */
+  .bottle-btn {
+    position: absolute; width: 4.4em; height: 7.4em; border: 0; border-radius: 1em; background: transparent; cursor: pointer;
+    touch-action: manipulation;
+  }
+  .bottle-btn:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+  .pour-btn { position: absolute; left: 21em; top: 24.2em; }
+
+  /* 도서관 초성 */
+  .cho { margin: 0; font-family: var(--font-display); font-size: 3em; letter-spacing: 0.25em; color: var(--candle); line-height: 1; }
+  .slots { display: flex; gap: 0.4em; }
+  .slot {
+    width: 2.6em; height: 2.6em; display: grid; place-items: center; border-radius: 0.5em;
+    background: var(--bg); box-shadow: inset 0 0 0 0.12em var(--line); font-size: 1.3em; border: 0; color: var(--text); cursor: pointer;
+  }
+  .tiles { display: grid; grid-template-columns: repeat(4, 3.3em); gap: 0.4em; }
+  .tile {
+    height: 2.6em; border: 0; border-radius: 0.5em; background: #e9e1ff; color: #2a1d3f; font: inherit; font-size: 1.3em;
+    cursor: pointer; box-shadow: 0 0.18em 0 #a99bd0; touch-action: manipulation;
+  }
+  .tile:disabled { opacity: 0.25; cursor: default; }
+  .tile:focus-visible, .slot:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+  .picture { font-size: 2em; line-height: 1; }
+
+  /* 방송실 버튼 */
+  .pads { display: grid; grid-template-columns: repeat(4, 5.2em); gap: 0.6em; }
+  .pad {
+    height: 5.2em; border: 0; border-radius: 1em; font-size: 1em; cursor: pointer; touch-action: manipulation;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1em;
+    color: #1a1226; box-shadow: 0 0.3em 0 rgba(0, 0, 0, 0.35); transition: transform 0.06s, filter 0.06s;
+  }
+  .pad span { font-size: 2em; line-height: 1; }
+  .pad.lit { filter: brightness(1.45) saturate(1.2); transform: scale(1.08); box-shadow: 0 0 1.4em rgba(255, 255, 255, 0.8); }
+  .pad:disabled { cursor: default; }
+  .pad:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+
+  /* 퀴즈 */
+  .options { display: grid; gap: 0.5em; width: 100%; }
+  .option {
+    min-height: 2.6em; padding: 0.4em 0.8em; border: 0; border-radius: 0.7em; background: var(--bg-card); color: var(--text);
+    font: inherit; font-size: 1.05em; cursor: pointer; box-shadow: inset 0 0 0 0.12em var(--line); touch-action: manipulation;
+  }
+  .option:hover { background: var(--line); }
+  .option.out { opacity: 0.3; text-decoration: line-through; }
+  .option:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+  .q { margin: 0; font-size: 1.2em; line-height: 1.4; }
+  .answer-row { display: flex; gap: 0.5em; }
+  .answer-row input {
+    width: 12em; min-height: 2.5em; padding: 0.3em 0.7em; border: 0; border-radius: 0.6em;
+    background: var(--bg); box-shadow: inset 0 0 0 0.12em var(--line); color: var(--text); font-size: 1em;
+  }
+
+  /* 보건실 그림 식 */
+  .eqs { display: grid; gap: 0.3em; font-size: 1.5em; font-variant-numeric: tabular-nums; }
+  .eqs p { margin: 0; }
+  .eqs .ask { color: var(--candle); }
+  .numpad { display: grid; grid-template-columns: repeat(5, 2.7em); gap: 0.35em; }
+  .num {
+    height: 2.5em; border: 0; border-radius: 0.5em; background: var(--bg-card); color: var(--text); font: inherit; font-size: 1.1em;
+    cursor: pointer; box-shadow: inset 0 0 0 0.12em var(--line); touch-action: manipulation;
+  }
+  .num:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+
+  /* 현관 자물쇠 */
+  .lock { display: flex; gap: 0.45em; }
+  .dial { display: flex; flex-direction: column; align-items: center; gap: 0.2em; }
+  .dial .icon { font-size: 1.5em; line-height: 1; }
+  .dial .digit {
+    width: 1.9em; height: 2.2em; display: grid; place-items: center; border-radius: 0.4em;
+    background: #f4e3b0; color: #3a2600; font-size: 1.6em; font-variant-numeric: tabular-nums;
+  }
+  .dial button {
+    width: 2.6em; height: 1.7em; border: 0; border-radius: 0.4em; background: var(--bg-card); color: var(--text);
+    font-size: 0.9em; cursor: pointer; touch-action: manipulation;
+  }
+  .dial button:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+  .meter { width: 100%; height: 1.2em; border-radius: 999px; background: var(--bg); box-shadow: inset 0 0 0 0.12em var(--line); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--pumpkin), var(--candle)); }
+
+  /* 복도 조작 */
+  .hall-ui { position: absolute; inset: 0; pointer-events: none; }
+  .hall-ui > * { pointer-events: auto; }
+  .hall-bubble { position: absolute; left: 0.6em; top: 3em; pointer-events: none; }
+  .pad-row { position: absolute; left: 0.8em; bottom: 0.8em; display: flex; gap: 0.6em; }
+  .move-btn, .hide-btn {
+    width: 4.6em; height: 4.6em; border: 0; border-radius: 1.2em; background: rgba(246, 241, 255, 0.88); color: #2a1d3f;
+    font: inherit; font-size: 1.05em; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+    box-shadow: 0 0.25em 0 rgba(0, 0, 0, 0.35);
+  }
+  .move-btn.on, .hide-btn.on { background: var(--mint); }
+  .hide-btn { position: absolute; right: 0.8em; bottom: 0.8em; width: 6.2em; background: var(--pumpkin); color: var(--pumpkin-ink); font-size: 1.15em; }
+  .hide-btn[aria-pressed="true"] { background: var(--mint); color: #0b2a24; }
+  .hide-btn.far { opacity: 0.55; }
+  .keys-hint { position: absolute; left: 50%; bottom: 0.7em; transform: translateX(-50%); margin: 0; color: var(--text-dim); font-size: 0.8em; white-space: nowrap; }
+
+  /* 지도·보상·수첩 */
+  .map-caption { position: absolute; left: 50%; bottom: 0.8em; transform: translateX(-50%); width: min(40em, 94%); align-items: center; }
+  .digit-card {
+    display: grid; place-items: center; width: 3.2em; height: 4em; border-radius: 0.5em;
+    background: #f4e3b0; color: #3a2600; font-family: var(--font-display); font-size: 2.6em; box-shadow: 0 0.2em 0 #b38d3a;
+  }
+  .note-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5em; width: 100%; margin: 0; padding: 0; list-style: none; }
+  .note-list li { display: flex; align-items: center; gap: 0.5em; padding: 0.4em 0.6em; border-radius: 0.6em; background: var(--bg-card); }
+  .note-list b { margin-left: auto; font-weight: 400; font-size: 1.5em; color: var(--candle); }
+
+  /* 선생님 설정 */
+  .teacher { display: grid; gap: 0.45em; width: 100%; text-align: left; }
+  .teacher .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5em; }
+  .teacher label { display: grid; gap: 0.2em; color: var(--text-dim); font-size: 0.85em; }
+  .teacher input, .teacher select { width: 100%; }
+  .qa { display: grid; grid-template-columns: 2fr 1fr; gap: 0.4em; }
+  .link-box { width: 100%; padding: 0.4em 0.6em; border-radius: 0.5em; background: var(--bg); font-size: 0.8em; overflow-wrap: anywhere; user-select: all; }
+  .qr { width: 9em; height: 9em; image-rendering: pixelated; border-radius: 0.4em; }
+</style>
+</head>
+<body>
+<div class="game-page">
+  <header class="game-bar">
+    <a class="back" href="../../index.html">← 게임 목록</a>
+    <h1>동암초 탈출<small>함께 하기 · 모둠 방탈출</small></h1>
+    <div class="tools">
+      <button class="icon-btn" id="mapBtn" type="button" aria-label="학교 지도" title="학교 지도" hidden>🗺️</button>
+      <button class="icon-btn" id="muteBtn" type="button">🔊</button>
+      <button class="icon-btn" id="fullBtn" type="button" aria-label="전체 화면" title="전체 화면">⛶</button>
+    </div>
+  </header>
+
+  <main class="stage-area" id="stageArea">
+    <div class="stage" id="stage">
+      <canvas id="scene" aria-label="동암초 탈출 게임 화면"></canvas>
+
+      <div class="hud" id="hud" hidden>
+        <span class="hud-chip" id="hudTeam"></span>
+        <span class="hud-chip" id="hudPlace"></span>
+        <span class="hud-chip hud-time" id="hudTime">00:00</span>
+        <button class="hud-btn" id="noteBtn" type="button">📒 숫자 수첩</button>
+      </div>
+
+      <section class="room" id="roomScreen" hidden>
+        <div class="room-card">
+          <p class="room-where" id="roomWhere"></p>
+          <h2 class="room-title" id="roomTitle"></h2>
+          <p class="room-goal" id="roomGoal"></p>
+        </div>
+        <div class="puzzle" id="puzzle"></div>
+        <div class="room-foot">
+          <button class="btn btn-quiet hint-btn" id="hintBtn" type="button">💡 힌트 (+30초)</button>
+          <p class="bubble" id="bubble" hidden></p>
+        </div>
+      </section>
+
+      <section class="hall-ui" id="hallScreen" hidden>
+        <p class="bubble hall-bubble" id="hallBubble"></p>
+        <div class="pad-row">
+          <button class="move-btn" id="leftBtn" type="button" aria-label="왼쪽으로 가기">◀</button>
+          <button class="move-btn" id="rightBtn" type="button" aria-label="오른쪽으로 가기">▶</button>
+        </div>
+        <p class="keys-hint">←→ 움직이기 · ↓ 또는 Space 숨기</p>
+        <button class="hide-btn" id="hideBtn" type="button" aria-pressed="false">숨기</button>
+      </section>
+
+      <section class="overlay" id="titleScreen">
+        <div class="panel">
+          <p class="eyebrow">함께 하기 · 모둠 방탈출</p>
+          <h2 class="big-title" id="titleName">동암초 탈출</h2>
+          <p class="story" id="titleStory"></p>
+          <form class="team-form" id="teamForm" autocomplete="off">
+            <label for="teamInput">모둠 이름</label>
+            <input id="teamInput" name="team" maxlength="8" value="1모둠">
+            <button class="btn" type="submit">탈출 시작</button>
+          </form>
+          <div class="row">
+            <button class="btn btn-quiet" id="resumeBtn" type="button" hidden>이어서 하기</button>
+            <button class="btn btn-quiet" id="boardBtn" type="button">명예의 전당</button>
+            <button class="btn btn-quiet" id="teacherBtn" type="button">선생님 설정</button>
+          </div>
+          <p class="hint">방 6개와 복도 5곳 · 힌트 한 번에 +30초 · 경비원에게 잡히면 +30초</p>
+        </div>
+      </section>
+
+      <section class="overlay clear" id="mapScreen" hidden>
+        <div class="panel map-caption">
+          <p class="sub-title" id="mapTitle"></p>
+          <p class="hint" id="mapText"></p>
+          <button class="btn" id="mapGo" type="button">출발!</button>
+        </div>
+      </section>
+
+      <section class="overlay" id="rewardScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title" id="rewardTitle">통과!</h2>
+          <p class="sub-title">유령 ‘부’가 숫자 카드를 떨어뜨렸어요</p>
+          <div class="digit-card" id="rewardDigit">7</div>
+          <p class="hint" id="rewardNote"></p>
+          <button class="btn" id="rewardNext" type="button">다음으로</button>
+        </div>
+      </section>
+
+      <section class="overlay" id="noteScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title">숫자 수첩</h2>
+          <ul class="note-list" id="noteList"></ul>
+          <p class="hint">중앙 현관 자물쇠는 그림이 놓인 순서대로 숫자를 맞춰야 열려요</p>
+          <button class="btn" id="noteClose" type="button">닫기</button>
+        </div>
+      </section>
+
+      <section class="overlay" id="caughtScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title" style="color: var(--danger)">삐익! 들켰어요!</h2>
+          <p class="sub-title">“거기 누구냐!” 경비 아저씨에게 잡혔어요</p>
+          <p class="hint">+30초 · 복도 처음부터 다시 몰래 가요</p>
+        </div>
+      </section>
+
+      <section class="overlay" id="resultScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title" id="resultTitle">탈출 성공!</h2>
+          <p class="result-score" id="resultTime">00:00</p>
+          <p class="result-stats" id="resultStats"></p>
+          <form class="name-form" id="nameForm" autocomplete="off">
+            <label for="nameInput">명예의 전당에 올릴 이름</label>
+            <input id="nameInput" name="name" maxlength="8" placeholder="모둠 이름" enterkeyhint="done">
+            <button class="btn" type="submit">기록 남기기</button>
+          </form>
+          <ol class="board" id="resultBoard"></ol>
+          <div class="row">
+            <button class="btn" id="againBtn" type="button">다시 하기</button>
+            <button class="btn btn-quiet" id="homeBtn" type="button">처음 화면</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="overlay" id="boardScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title">명예의 전당</h2>
+          <p class="hint">이 기기에서 가장 빨리 탈출한 10모둠</p>
+          <ol class="board" id="boardList"></ol>
+          <button class="btn" id="boardClose" type="button">닫기</button>
+        </div>
+      </section>
+
+      <section class="overlay" id="teacherScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title">선생님 설정</h2>
+          <form class="teacher" id="teacherForm" autocomplete="off">
+            <div class="two">
+              <label>학교 이름 <input id="tSchool" maxlength="20"></label>
+              <label>출발 교실 (우리 반) <select id="tClass"></select></label>
+            </div>
+            <p class="hint">교무실 퀴즈를 직접 낼 수 있어요. 비워 두면 학교 지도 퀴즈가 나와요. 답이 여러 개면 쉼표로 나눠요.</p>
+            <div class="qa"><input id="tQ1" maxlength="80" placeholder="문제 1 (예: 우리 학교 개교기념일은 몇 월?)"><input id="tA1" maxlength="40" placeholder="답 (예: 5월, 오월)"></div>
+            <div class="qa"><input id="tQ2" maxlength="80" placeholder="문제 2"><input id="tA2" maxlength="40" placeholder="답"></div>
+            <div class="qa"><input id="tQ3" maxlength="80" placeholder="문제 3"><input id="tA3" maxlength="40" placeholder="답"></div>
+            <div class="row">
+              <button class="btn" type="submit">저장하기</button>
+              <button class="btn btn-quiet" id="tReset" type="button">처음 설정으로</button>
+              <button class="btn btn-quiet" id="tClose" type="button">닫기</button>
+            </div>
+          </form>
+          <div id="tShare" hidden>
+            <p class="hint">학생 기기는 이 주소로 열어야 선생님 문제가 나와요</p>
+            <div class="row"><canvas class="qr" id="tQr" width="180" height="180"></canvas></div>
+            <div class="link-box" id="tLink"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <p class="rotate-hint">휴대폰·태블릿은 가로로 돌리면 더 크게 보여요</p>
+  </main>
+</div>
+
+<script src="../../assets/common.js"></script>
+<script src="../../assets/art.js"></script>
+<script src="core.js"></script>
+<script src="scenes.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
