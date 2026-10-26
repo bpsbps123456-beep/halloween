@@ -838,6 +838,15 @@
 
   /** 우리 반 칠판: 담임 선생님, 주번, 떠든 사람 + 유령의 수수께끼
       o = { school, myClass, teacher, duty: [], noisy: [] } */
+  /** 복도 옆 다른 교실 칠판 (밤이라 아무도 없어요) */
+  X.roomBoard = function () {
+    const { c, g } = chalkBoard(960, 320);
+    chalk(g, '10월 31일 할로윈', 480, 70, 44, '#ffd9a0');
+    chalk(g, '복도에서 뛰지 않기!', 480, 150, 38);
+    chalk(g, '숙제: 분장 준비물 챙기기', 480, 215, 30, '#d6f5ff');
+    chalk(g, '🎃', 840, 260, 48);
+    return c;
+  };
   X.classBoard = function (o, form) {
     const { c, g } = chalkBoard(1280, 384);
     // 왼쪽: 우리 반 소식

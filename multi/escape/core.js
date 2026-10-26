@@ -51,7 +51,7 @@
     { id: 'classroom', place: null, icon: '🎃', title: '칠판의 수수께끼', goal: '교실에 숨은 호박·박쥐·거미를 모두 세어 칠판의 식을 풀어요. 답은 선생님 책상 서랍 비밀번호!' },
     { id: 'science', place: '과학실', icon: '🧪', title: '마녀의 물약', goal: '칠판의 나눗셈과 비율로 물약 양을 구해 솥에 부어요. 물약 3가지를 만들어요.' },
     { id: 'library', place: '도서관', icon: '📚', title: '속담 책장', goal: '책장 어딘가에서 보랏빛으로 빛나는 책 3권을 찾아 속담의 빈칸을 채워요.' },
-    { id: 'broadcast', place: '방송실', icon: '📢', title: '유령의 모스 부호', goal: '유령이 보내는 삐- 소리와 불빛을 벽의 모스 부호표로 풀어 4자리 비밀번호를 찾아요.' },
+    { id: 'broadcast', place: '방송실', icon: '📢', title: '유령의 모스 부호', goal: '방송 장비로 유령 방송을 들으면 종이에 ● ▬ 가 찍혀요. 모스 부호표와 맞춰 4자리 비밀번호를 찾아요.' },
     { id: 'office', place: '교무실', icon: '📝', title: '선생님 자리 찾기', goal: '화이트보드 단서로 선생님 다섯 분의 자리를 모두 알아내요.' },
     { id: 'nurse', place: '보건실', icon: '🩹', title: '보건실 약장', goal: '보건실 곳곳의 처방전 쪽지 4장을 찾아 그림 식을 풀고, 약장 비밀번호를 맞혀요.' },
   ];
@@ -128,16 +128,11 @@
   const gcd = (a, b) => (b ? gcd(b, a % b) : a);
   const num = (x) => String(Math.round(x * 1000) / 1000);
   // 비율: [값, 분수로, 소수로, 백분율로]
+  // 아이들이 어려워하지 않는 쉬운 비율만 써요 (기준량의 10%, 50%, 100%)
   const RATES = [
-    [1 / 2, '1/2', '0.5', '50%'],
-    [1 / 4, '1/4', '0.25', '25%'],
-    [3 / 4, '3/4', '0.75', '75%'],
-    [2 / 5, '2/5', '0.4', '40%'],
-    [3 / 5, '3/5', '0.6', '60%'],
-    [4 / 5, '4/5', '0.8', '80%'],
-    [3 / 2, '3/2', '1.5', '150%'],
-    [6 / 5, '6/5', '1.2', '120%'],
-    [1 / 5, '1/5', '0.2', '20%'],
+    [1 / 10, '10%'],
+    [1 / 2, '50%'],
+    [1, '100%'],
   ];
   /** 첫 물약 양을 나눗셈 식으로: 소수의 나눗셈 또는 분수의 나눗셈 */
   function divisionFor(A, rnd) {
@@ -158,26 +153,13 @@
   }
   function makeRecipe(color, rnd) {
     const parts = RECIPES[color];
-    for (;;) {
-      const A = 10 * randInt(8, 30, rnd); // 80~300mL
-      const amounts = [A];
-      const lines = [parts[0] + ' = ' + divisionFor(A, rnd) + ' (mL)'];
-      let ok = true;
-      const used = [];
-      for (let i = 1; i < parts.length && ok; i++) {
-        const fits = RATES.filter((r) => used.indexOf(r) < 0 && Math.abs((A * r[0]) % 10) < 1e-9 && A * r[0] <= 600 && Math.round(A * r[0]) !== A);
-        if (!fits.length) ok = false;
-        else {
-          const r = fits[Math.floor(rnd() * fits.length)];
-          used.push(r);
-          amounts.push(Math.round(A * r[0]));
-          const shown = r[1 + Math.floor(rnd() * 3)];
-          lines.push(parts[0] + '에 대한 ' + parts[i] + '의 비율 = ' + shown);
-        }
-      }
-      if (!ok) continue;
-      return { color, parts, amounts, lines, total: amounts.reduce((x, y) => x + y, 0) };
-    }
+    const rates = shuffle(RATES, rnd).slice(0, parts.length - 1);
+    // 10%가 있으면 100의 배수, 50%가 있으면 20의 배수: 모든 양이 10mL 눈금에 딱 맞아요
+    const step = rates.some((r) => r[0] === 1 / 10) ? 100 : rates.some((r) => r[0] === 1 / 2) ? 20 : 10;
+    const A = step * randInt(Math.ceil(80 / step), Math.floor(300 / step), rnd); // 80~300mL
+    const amounts = [A].concat(rates.map((r) => Math.round(A * r[0])));
+    const lines = [parts[0] + ' = ' + divisionFor(A, rnd) + ' (mL)'].concat(rates.map((r, i) => parts[0] + '에 대한 ' + parts[i + 1] + '의 비율 = ' + r[1]));
+    return { color, parts, amounts, lines, total: amounts.reduce((x, y) => x + y, 0) };
   }
   function makeScience(rnd) {
     const two = shuffle(['보라', '초록', '주황'], rnd).slice(0, 2);
@@ -445,18 +427,29 @@
   }
 
   /* ---------------- 복도: 경비원을 피해 몰래 지나가기 ----------------
-     복도는 x축으로 길게 놓여요. z = -1.5 가 창문 쪽, z = +1.5 가 교실 문 쪽 벽이에요.
-     경비원 손전등 불빛 안에 들어가면 들켜서 쫓아와요. 뛰면 발소리가 나서 경비원이 돌아봐요.
-     숨을 곳(청소함·화장실·열린 교실 문)에 숨으면 안전해요. 잡히면 복도 처음부터 다시. */
+     복도는 x축으로 길게 놓여요. z = -1.5 가 창문 쪽, z = +1.5 가 교실 쪽 벽이에요.
+     - 손전등 불빛에 오래 비치면 들켜요 (가까울수록 빨리). 잠깐 비쳤다 빠지면 "응?" 하고 그 자리를 살피러 와요.
+     - 뛰면 발소리를 듣고 소리 난 곳으로 와 봐요.
+     - 숨을 곳: 청소함·화장실, 계단(아래층으로 도망), 문이 열린 교실(앞문으로 들어가 뒷문으로 나올 수 있어요).
+     - 쫓아올 때 경비원 눈앞에서 숨으면 그 청소함을 열어 봐요! 교실이나 계단으로 따돌려요.
+     잡히면 복도 처음부터 다시. */
   const HALL_WIDTH = 3;
   const HALL_HEIGHT = 3;
+  const WALL_Z = HALL_WIDTH / 2; // 교실 쪽 벽
   const Z_MIN = -0.95; // 창가 쪽에는 청소함과 라디에이터가 있어요
   const Z_MAX = 1.15;
+  const ROOM_DEPTH = 6.5; // 열린 교실: 복도 벽(z 1.5)부터 창문 벽(z 8)까지
+  const ROOM_Z0 = 1.85; // 교실 안에서 걸을 수 있는 곳 (책상은 청소 시간처럼 뒤로 밀어 두었어요)
+  const ROOM_Z1 = 5.4;
+  const ROOM_INSET = 1.1;
+  const DOOR_HALF = 0.36;
   const WALK = 2.5;
   const RUN = 4.2;
   const CATCH = 1.0;
   const HIDE_REACH = 1.1;
+  const STAIRS_REACH = 1.7;
   const NOISE = 7; // 뛰는 발소리가 들리는 거리
+  const SEE_HALF = 0.45; // 손전등 불빛의 반각 (라디안)
 
   const WIDE_ROOMS = ['도서관', '교무실', '과학실', '지능형과학실', '늘봄교실', '돌봄교실', '다이룸터', '몽글마루', '채움실', '나눔실', '정보실'];
   function cellKind(name) {
@@ -482,6 +475,10 @@
     if (cell.kind !== 'room' || w < 8) return (cell.x0 + cell.x1) / 2;
     return side < 0 ? cell.x0 + 1.6 : cell.x1 - 1.6;
   }
+  /** 방 칸의 문 전부 (넓은 방은 앞문·뒷문) */
+  function doorsOf(cell) {
+    return cell.x1 - cell.x0 >= 8 ? [cell.x0 + 1.6, cell.x1 - 1.6] : [(cell.x0 + cell.x1) / 2];
+  }
 
   /* fromIndex/toIndex 는 대피 안내도 복도 줄의 칸 번호 */
   const HALLS = [
@@ -491,8 +488,8 @@
       floor: 3,
       fromIndex: 7,
       toIndex: 2,
-      guard: { speed: 1.1, chase: 3.3, cone: 8, turn: 0, check: 0.6 },
-      intro: '가운데 계단으로 신관 3층에 올라왔어요. 경비 아저씨가 순찰 중이에요! 손전등 불빛에 들키지 말고 과학실까지 가요. 뛰면 발소리가 나요!',
+      guard: { speed: 1.1, chase: 3.3, cone: 7.5, turn: 0, check: 0.6 },
+      intro: '가운데 계단으로 신관 3층에 올라왔어요. 경비 아저씨가 순찰 중이에요! 손전등 불빛에 오래 비치면 들켜요. 뛰면 발소리가 나요! 들키면 계단으로 내려가 따돌려요.',
     },
     {
       id: 'h2',
@@ -500,8 +497,8 @@
       floor: 3,
       fromIndex: 4,
       toIndex: 1,
-      guard: { speed: 1.25, chase: 3.5, cone: 8.5, turn: 0.08, check: 0.65 },
-      intro: '연결통로를 건너 본관 3층에 왔어요. 도서관은 복도 끝 왼쪽이에요. 경비 아저씨가 가끔 뒤를 돌아봐요.',
+      guard: { speed: 1.25, chase: 3.5, cone: 8, turn: 0.06, check: 0.65 },
+      intro: '연결통로를 건너 본관 3층에 왔어요. 도서관은 복도 끝 왼쪽이에요. 문이 열린 교실은 들어갈 수 있어요. 앞문으로 들어가 뒷문으로 나오면 경비 아저씨를 따돌려요!',
     },
     {
       id: 'h3',
@@ -509,8 +506,8 @@
       floor: 2,
       fromIndex: 0,
       toIndex: 5,
-      guard: { speed: 1.35, chase: 3.7, cone: 9, turn: 0.12, check: 0.7 },
-      intro: '왼쪽 계단으로 본관 2층에 내려왔어요. 방송실까지 몰래 가요. 교실을 살피러 들어갔을 때가 기회예요!',
+      guard: { speed: 1.3, chase: 3.6, cone: 8, turn: 0.08, check: 0.7 },
+      intro: '왼쪽 계단으로 본관 2층에 내려왔어요. 방송실까지 몰래 가요. 교실을 살피러 들어갔을 때가 기회예요! 경비 아저씨가 멈춰 서면 곧 뒤돌아봐요.',
     },
     {
       id: 'h4',
@@ -518,8 +515,8 @@
       floor: 2,
       fromIndex: 5,
       toIndex: 8,
-      guard: { speed: 1.45, chase: 3.8, cone: 9, turn: 0.16, check: 0.7 },
-      intro: '회의실과 교장실 앞을 지나 교무실로 가요. 경비 아저씨가 점점 예민해져요.',
+      guard: { speed: 1.4, chase: 3.7, cone: 8.5, turn: 0.1, check: 0.7 },
+      intro: '회의실과 교장실 앞을 지나 교무실로 가요. 문이 하나뿐인 방은 막다른 곳이에요. 쫓길 때는 들어가지 마요!',
     },
     {
       id: 'h5',
@@ -527,8 +524,8 @@
       floor: 1,
       fromIndex: 11,
       toIndex: 7,
-      guard: { speed: 1.55, chase: 3.9, cone: 9.5, turn: 0.2, check: 0.75 },
-      intro: '동쪽 계단으로 1층에 내려왔어요. 동쪽 현관은 잠겨 있어요! 1학년 교실 앞을 지나 보건실로 가요.',
+      guard: { speed: 1.5, chase: 3.8, cone: 9, turn: 0.12, check: 0.75 },
+      intro: '동쪽 계단으로 1층에 내려왔어요. 동쪽 현관은 잠겨 있어요! 1학년 교실 앞을 지나 보건실로 가요. 경비 아저씨가 점점 예민해져요.',
     },
   ];
 
@@ -552,30 +549,45 @@
     const to = cellAt(def.toIndex);
     const startX = from.kind === 'room' ? doorX(from, dir) : (from.x0 + from.x1) / 2;
     const goalX = doorX(to, -dir);
+    const inside = (sx) => (sx - startX) * dir > 2 && (goalX - sx) * dir > 2;
 
-    // 숨을 곳: 화장실, 하나 건너 하나씩 열린 교실 문, 빈 곳은 청소함으로 메워요
-    const spots = [];
+    // 문이 열린 교실: 하나 건너 하나씩 (들어가서 숨거나, 다른 문으로 빠져나가요)
+    const rooms = [];
     let roomCount = 0;
     cells.forEach((c) => {
-      if (c.index === def.fromIndex || c.index === def.toIndex) return;
-      if (c.kind === 'toilet') spots.push({ x: (c.x0 + c.x1) / 2, z: 1.5, kind: 'toilet', label: '화장실' });
-      else if (c.kind === 'room') {
-        if (roomCount++ % 2 === 0) spots.push({ x: doorX(c, dir), z: 1.5, kind: 'door', label: c.name + ' 교실 문 안', cell: c.index });
-      }
+      if (c.kind !== 'room' || c.index === def.fromIndex || c.index === def.toIndex) return;
+      if (roomCount++ % 2) return;
+      const doors = doorsOf(c).filter(inside);
+      if (!doors.length) return;
+      rooms.push({ cell: c.index, name: c.name, x0: c.x0, x1: c.x1, ix0: c.x0 + ROOM_INSET, ix1: c.x1 - ROOM_INSET, doors: doorsOf(c) });
     });
-    const inside = (sx) => (sx - startX) * dir > 2 && (goalX - sx) * dir > 2;
-    for (let i = spots.length - 1; i >= 0; i--) if (!inside(spots[i].x)) spots.splice(i, 1);
-    const near = (sx) => spots.some((sp) => Math.abs(sp.x - sx) < 3);
+
+    // 숨을 곳: 화장실, 계단(아래층으로), 빈 곳은 청소함으로 메워요
+    const spots = [];
+    cells.forEach((c) => {
+      if (c.index === def.toIndex) return;
+      const mid = (c.x0 + c.x1) / 2;
+      if (c.kind === 'toilet' && inside(mid)) spots.push({ x: mid, z: 1.5, kind: 'toilet', label: '화장실' });
+      // 계단은 출발 자리에 있어도 돼요: 들키면 아래층으로 내려가 따돌려요
+      if (c.kind === 'stairs') spots.push({ x: mid, z: 1.5, kind: 'stairs', label: '아래층 계단', downX: c.x1 - 1.4 });
+    });
+    const havens = () => spots.map((s) => s.x).concat(...rooms.map((r) => r.doors));
+    const near = (sx) => havens().some((hx) => Math.abs(hx - sx) < 3);
     const firstSafe = startX + dir * 4.5;
     const lastSafe = goalX - dir * 4;
     if (!near(firstSafe)) spots.push({ x: firstSafe, z: -1.25, kind: 'locker', label: '청소함' });
     if (!near(lastSafe)) spots.push({ x: lastSafe, z: -1.25, kind: 'locker', label: '청소함' });
-    spots.sort((a, b) => a.x - b.x);
-    for (let i = 0; i + 1 < spots.length; i++) {
-      if (spots[i + 1].x - spots[i].x > 9) {
-        spots.splice(i + 1, 0, { x: (spots[i].x + spots[i + 1].x) / 2, z: -1.25, kind: 'locker', label: '청소함' });
-      }
+    for (let guard = 0; guard < 20; guard++) {
+      const xs = havens()
+        .filter((hx) => (hx - startX) * dir > -0.5 && (goalX - hx) * dir > 0)
+        .concat([startX])
+        .sort((a, b) => a - b);
+      let gap = -1;
+      for (let i = 0; i + 1 < xs.length; i++) if (xs[i + 1] - xs[i] > 9) gap = i;
+      if (gap < 0) break;
+      spots.push({ x: (xs[gap] + xs[gap + 1]) / 2, z: -1.25, kind: 'locker', label: '청소함' });
     }
+    spots.sort((a, b) => a.x - b.x);
 
     // 경비원은 출발 쪽 7m 밖에서부터 도착 문 3.5m 앞까지 순찰해요
     const a = startX + dir * 7;
@@ -583,6 +595,8 @@
     const g = def.guard;
     const lo2 = Math.min(a, b);
     const hi2 = Math.max(a, b);
+    const inPatrol = (d) => d.x >= lo2 + 0.3 && d.x <= hi2 - 0.3;
+    const openCells = rooms.map((r) => r.cell);
     const guard = {
       min: lo2,
       max: hi2,
@@ -590,13 +604,13 @@
       chaseSpeed: g.chase,
       cone: g.cone,
       turn: g.turn,
-      // 순찰하다가 교실 문을 열고 들어가 살펴봐요: 그때가 지나갈 기회!
-      // (아이가 숨어 있는 열린 문 교실에는 들어가지 않아요)
+      // 순찰하다가 닫힌 교실 문을 열고 들어가 살펴봐요: 그때가 지나갈 기회!
       doors: cells
-        .filter((c) => c.kind === 'room' && c.index !== def.fromIndex && c.index !== def.toIndex)
-        .map((c) => ({ x: doorX(c, -dir), cell: c.index }))
-        .filter((d) => d.x >= lo2 + 0.3 && d.x <= hi2 - 0.3)
-        .filter((d) => !spots.some((sp) => sp.kind === 'door' && Math.abs(sp.x - d.x) < 2)),
+        .filter((c) => c.kind === 'room' && c.index !== def.fromIndex && c.index !== def.toIndex && openCells.indexOf(c.index) < 0)
+        .reduce((all, c) => all.concat(doorsOf(c).map((dx) => ({ x: dx, cell: c.index }))), [])
+        .filter(inPatrol),
+      // 열린 교실은 문 앞에 서서 손전등으로 안을 비춰 봐요
+      peeks: [].concat(...rooms.map((r) => r.doors.map((d) => ({ x: d, cell: r.cell })))).filter(inPatrol),
       checkChance: g.check,
     };
     const hall = {
@@ -608,6 +622,7 @@
       goalX,
       goalZ: 1.3,
       spots,
+      rooms,
       guard,
       player: null,
       t: 0,
@@ -621,41 +636,187 @@
   }
 
   function resetHall(h) {
-    h.player = { x: h.startX, z: 0, hidden: -1, walking: false, running: false };
+    h.player = { x: h.startX, z: 0, hidden: -1, hold: false, walking: false, running: false };
     const g = h.guard;
     g.x = (g.min + g.max) / 2;
     g.z = 0;
     g.face = h.dir; // 처음엔 등을 보이며 도착 쪽으로 걸어가요
+    g.ang = h.dir > 0 ? 0 : Math.PI;
     g.state = 'walk';
     g.timer = 0;
     g.cool = 0;
     g.door = null;
+    g.sus = 0; // 의심: 1 이 되면 들켜요
+    g.clue = null; // 살피러 갈 곳
+    g.lastSeen = null;
+    g.lostT = 0;
+    g.saw = -1; // 숨는 걸 본 숨을 곳
+    g.target = -1;
+    g.glimpse = null;
+    g.moving = false;
+    g.phase = 0;
   }
 
   const sign = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
-  /** 경비원이 복도에 있나요? (교실 안에 들어가 있으면 못 봐요) */
+  const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+  /** 경비원이 복도에 있나요? (닫힌 교실 안에 들어가 있으면 못 봐요) */
   const inCorridor = (g) => g.state !== 'enter' && g.state !== 'inRoom';
+  const hunting = (g) => g.state === 'alert' || g.state === 'chase';
 
-  /** 지금 손전등 불빛 안에 있나요? */
-  function inLight(h) {
-    const p = h.player;
-    const g = h.guard;
-    if (p.hidden >= 0 || !inCorridor(g)) return false;
-    const d = (p.x - g.x) * g.face;
-    return d >= -0.3 && d <= g.cone;
+  /** 그 자리가 열린 교실 안이면 그 교실 */
+  function roomAt(h, x, z) {
+    if (z < WALL_Z) return null;
+    return h.rooms.find((r) => x >= r.x0 && x <= r.x1) || null;
+  }
+  const regionOf = (h, x, z) => {
+    const r = roomAt(h, x, z);
+    return r ? r.cell : -1;
+  };
+  /** 아이가 설 수 있는 곳: 복도, 열린 문 통로, 열린 교실 안 */
+  function walkable(h, x, z) {
+    if (z <= Z_MAX) return z >= Z_MIN && x >= 0.5 && x <= h.length - 0.5;
+    for (const r of h.rooms) {
+      if (z >= ROOM_Z0 && z <= ROOM_Z1 && x >= r.ix0 && x <= r.ix1) return true;
+      if (z < ROOM_Z0 + 1e-9 && r.doors.some((d) => Math.abs(x - d) <= DOOR_HALF)) return true;
+    }
+    return false;
+  }
+  /** 가까운 열린 교실 문 */
+  function doorNear(h, x, reach) {
+    let best = null;
+    let bd = reach;
+    h.rooms.forEach((r) =>
+      r.doors.forEach((d) => {
+        if (Math.abs(d - x) <= bd) {
+          bd = Math.abs(d - x);
+          best = d;
+        }
+      })
+    );
+    return best;
+  }
+  function bestDoor(r, ax, tx) {
+    let best = r.doors[0];
+    r.doors.forEach((d) => {
+      if (Math.abs(ax - d) + Math.abs(d - tx) < Math.abs(ax - best) + Math.abs(best - tx)) best = d;
+    });
+    return best;
+  }
+  /** 경비원이 다음에 걸어갈 곳: 복도와 교실 사이는 문으로만 다녀요 */
+  function waypoint(h, ax, az, tx, tz) {
+    const ra = roomAt(h, ax, az);
+    const rt = roomAt(h, tx, tz);
+    if (ra === rt) return [tx, tz];
+    const inZ = ROOM_Z0 + 0.15;
+    if (ra) {
+      const d = bestDoor(ra, ax, tx);
+      return Math.abs(ax - d) > 0.03 ? [d, Math.max(az, inZ)] : [d, 1.0];
+    }
+    const d = bestDoor(rt, ax, tx);
+    return Math.abs(ax - d) < 0.03 && az > 0.97 ? [d, inZ] : [d, 1.0];
+  }
+  function turnTo(g, ang, dt, rate) {
+    const d = wrap(ang - g.ang);
+    const k = (rate || 9) * dt;
+    g.ang = Math.abs(d) <= k ? ang : wrap(g.ang + sign(d) * k);
+  }
+  /** 경비원을 (tx, tz) 쪽으로 걸려요. 닿으면 true */
+  function walkTo(h, g, tx, tz, speed, dt) {
+    let step = speed * dt;
+    for (let k = 0; k < 3 && step > 1e-9; k++) {
+      const [wx, wz] = waypoint(h, g.x, g.z, tx, tz);
+      const dx = wx - g.x;
+      const dz = wz - g.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 1e-9) break;
+      turnTo(g, Math.atan2(dz, dx), dt);
+      if (Math.abs(dx) > 0.01) g.face = sign(dx);
+      const s = Math.min(d, step);
+      g.x += (dx / d) * s;
+      g.z += (dz / d) * s;
+      step -= s;
+      g.moving = true;
+    }
+    return Math.hypot(tx - g.x, tz - g.z) < 0.05;
   }
 
-  function spotNear(h, x) {
+  /** 경비원 눈에 아이가 보이나요? 0 이면 안 보이고, 가까울수록 1에 가까워요 */
+  function sight(h) {
+    const p = h.player;
+    const g = h.guard;
+    if (p.hidden >= 0 || !inCorridor(g)) return 0;
+    if (regionOf(h, p.x, p.z) !== regionOf(h, g.x, g.z)) return 0;
+    const dx = p.x - g.x;
+    const dz = p.z - g.z;
+    const d = Math.hypot(dx, dz);
+    if (d > g.cone) return 0;
+    const off = Math.abs(wrap(Math.atan2(dz, dx) - g.ang));
+    if (off > (d < 1.4 ? Math.PI / 2 + 0.3 : SEE_HALF)) return 0;
+    return Math.max(0.05, 1 - d / (g.cone + 0.5));
+  }
+  /** 지금 손전등 불빛 안에 있나요? */
+  const inLight = (h) => sight(h) > 0;
+
+  function spotNear(h, x, z) {
+    if (z != null && z > Z_MAX + 0.05) return -1;
     let best = -1;
-    let bestD = HIDE_REACH;
+    let bestD = 1e9;
     h.spots.forEach((sp, i) => {
       const d = Math.abs(sp.x - x);
-      if (d <= bestD) {
+      if (d <= (sp.kind === 'stairs' ? STAIRS_REACH : HIDE_REACH) && d < bestD) {
         bestD = d;
         best = i;
       }
     });
     return best;
+  }
+  /** 숨을 곳 앞 경비원이 서는 자리 */
+  const spotFront = (sp) => ({ x: sp.x, z: sp.z < 0 ? -0.45 : 0.9 });
+
+  /** 살피러 갈 곳을 정해요. 그 자리 바로 옆에 청소함이 있으면 열어 보고, 열린 교실 문 앞이면 교실 안을 비춰 봐요. */
+  function setClue(h, x, z, why, noSpot) {
+    const g = h.guard;
+    const r = roomAt(h, x, z);
+    if (r) {
+      g.clue = { x: bestDoor(r, g.x, x), z: 1.0, why, spot: -1, room: r.cell };
+      return;
+    }
+    let spot = -1;
+    let bd = 1.4;
+    if (!noSpot)
+      h.spots.forEach((sp, i) => {
+        if (sp.kind !== 'stairs' && Math.abs(sp.x - x) < bd) {
+          bd = Math.abs(sp.x - x);
+          spot = i;
+        }
+      });
+    let room = -1;
+    const d = spot < 0 && z > 0.5 ? doorNear(h, x, 1.2) : null;
+    if (d != null) room = h.rooms.find((rr) => rr.doors.indexOf(d) >= 0).cell;
+    g.clue = { x, z, why, spot, room };
+  }
+  /** 도착한 곳에서 무엇을 할까: 청소함 열기 / 교실 비추기 / 둘러보기 */
+  function searchAt(h, emit) {
+    const g = h.guard;
+    const c = g.clue || { x: g.x, z: g.z, spot: -1, room: -1 };
+    g.clue = null;
+    if (c.spot >= 0) {
+      g.target = c.spot;
+      g.state = 'goCheck';
+      return;
+    }
+    const room = h.rooms.find((r) => r.cell === c.room);
+    if (room) {
+      g.state = 'roomSearch';
+      g.door = { x: bestDoor(room, g.x, c.x), cell: room.cell };
+      g.timer = 3.5;
+      g.phase = 0;
+      emit('roomSearch', { cell: room.cell });
+      return;
+    }
+    g.state = 'search';
+    g.timer = 2.4;
+    g.phase = g.ang;
   }
 
   /** input: { vx, vz (m/s, 화면에서 계산), run: 뛰는 중, hide: 숨기 버튼을 누른 순간 } */
@@ -665,85 +826,134 @@
     const p = h.player;
     const g = h.guard;
     const emit = (type, data) => h.events.push(Object.assign({ type }, data));
-    const vx = input.vx || 0;
+    let vx = input.vx || 0;
     const vz = input.vz || 0;
     const moving = Math.abs(vx) + Math.abs(vz) > 0.05;
+    const caught = (why) => {
+      h.caught++;
+      emit('caught', { why });
+      resetHall(h);
+    };
 
-    // 아이 움직이기 / 숨기
-    if (input.hide) {
-      if (p.hidden >= 0) {
-        const sp = h.spots[p.hidden];
-        p.hidden = -1;
-        p.z = Math.max(Z_MIN, Math.min(Z_MAX, sp.z > 0 ? 0.6 : -0.5));
-        emit('unhide');
-      } else {
-        const i = spotNear(h, p.x);
-        if (i >= 0) {
-          p.hidden = i;
-          p.x = h.spots[i].x;
-          emit('hide', { spot: i });
-        }
-      }
-    } else if (moving && p.hidden >= 0) {
+    // 아이 숨기 / 나오기
+    const unhide = () => {
       const sp = h.spots[p.hidden];
       p.hidden = -1;
-      p.z = sp.z > 0 ? 0.6 : -0.5;
-      emit('unhide');
-    }
+      p.z = sp.kind === 'locker' ? -0.5 : sp.kind === 'stairs' ? 0.75 : 0.6;
+      emit('unhide', { kind: sp.kind });
+    };
+    if (input.hide) {
+      if (p.hidden >= 0) unhide();
+      else {
+        const i = spotNear(h, p.x, p.z);
+        if (i >= 0) {
+          // 경비원 눈앞에서 숨으면 경비원이 그걸 봐요
+          const dist = Math.hypot(p.x - g.x, p.z - g.z);
+          const seen = sight(h) > 0 || (hunting(g) && inCorridor(g) && regionOf(h, g.x, g.z) < 0 && dist < g.cone + 1);
+          p.hidden = i;
+          p.hold = moving; // 걷던 손을 떼기 전까지는 그대로 숨어 있어요
+          p.x = h.spots[i].x;
+          g.saw = seen ? i : -1;
+          emit('hide', { spot: i, kind: h.spots[i].kind, seen });
+        }
+      }
+    } else if (moving && p.hidden >= 0 && !p.hold) unhide();
+    if (!moving) p.hold = false;
     p.walking = false;
     p.running = false;
     if (moving && p.hidden < 0) {
-      p.x = Math.min(h.length - 0.5, Math.max(0.5, p.x + vx * dt));
-      p.z = Math.min(Z_MAX, Math.max(Z_MIN, p.z + vz * dt));
+      // 열린 교실 문 앞에서 문 쪽으로 가면 문 가운데로 살짝 끌어 줘요
+      const d = doorNear(h, p.x, 0.95);
+      if (d != null && ((vz > 0.2 && p.z > Z_MAX - 0.4 && p.z < ROOM_Z0) || (vz < -0.2 && p.z > Z_MAX - 0.05 && p.z < ROOM_Z0 + 0.45))) {
+        vx += Math.max(-2.5, Math.min(2.5, (d - p.x) * 7));
+      }
+      const nx = p.x + vx * dt;
+      const nz = p.z + vz * dt;
+      if (walkable(h, nx, nz)) {
+        p.x = nx;
+        p.z = nz;
+      } else if (walkable(h, nx, p.z)) p.x = nx;
+      else if (walkable(h, p.x, nz)) p.z = nz;
+      else if (p.z <= Z_MAX) p.z = Math.min(Z_MAX, Math.max(Z_MIN, nz));
       p.walking = true;
       p.running = !!input.run;
     }
-    if (p.hidden < 0 && Math.abs(p.x - h.goalX) < 0.8 && p.z > 0.45) {
+    if (p.hidden < 0 && Math.abs(p.x - h.goalX) < 0.8 && p.z > 0.45 && p.z < WALL_Z) {
       h.done = true;
       emit('goal');
       return;
     }
 
     // 경비원
-    const prev = g.x;
+    g.moving = false;
     if (g.cool > 0) g.cool -= dt;
-    // 뛰는 발소리가 들리면 그쪽을 돌아봐요
-    if (p.running && p.hidden < 0 && inCorridor(g) && (g.state === 'walk' || g.state === 'pause') && Math.abs(p.x - g.x) < NOISE) {
-      g.state = 'listen';
-      g.timer = 1.3;
-      g.face = sign(p.x - g.x) || g.face;
-      emit('heard');
+    const pd = Math.hypot(p.x - g.x, p.z - g.z);
+    const calm = !hunting(g) && inCorridor(g);
+    // 뛰는 발소리가 들리면 소리 난 곳으로 살피러 와요
+    if (p.running && p.hidden < 0 && calm && pd < NOISE && g.state !== 'goCheck' && g.state !== 'check' && g.state !== 'listen') {
+      const fresh = !g.clue || Math.abs(g.clue.x - p.x) > 2;
+      setClue(h, p.x, p.z, 'noise');
+      if (g.state !== 'investigate' || fresh) {
+        g.state = 'listen';
+        g.timer = 0.7;
+        emit('heard');
+      }
     }
     switch (g.state) {
       case 'walk': {
+        if (roomAt(h, g.x, g.z) || g.z > 0.6) {
+          g.state = 'return';
+          break;
+        }
+        const prev = g.x;
         if (g.x < g.min - 0.05) g.face = 1;
         else if (g.x > g.max + 0.05) g.face = -1;
         g.x += g.face * g.speed * dt;
         g.z += (0 - g.z) * Math.min(1, dt * 4);
+        g.moving = true;
+        turnTo(g, g.face > 0 ? 0 : Math.PI, dt);
         const end = (g.face > 0 && prev < g.max && g.x >= g.max) || (g.face < 0 && prev > g.min && g.x <= g.min);
-        const door = g.cool <= 0 ? g.doors.find((d) => (prev - d.x) * (g.x - d.x) <= 0) : undefined;
+        const cross = (d) => (prev - d.x) * (g.x - d.x) <= 0;
+        const door = g.cool <= 0 ? g.doors.find(cross) : undefined;
+        const peek = g.cool <= 0 && !door ? g.peeks.find(cross) : undefined;
         if (door && h.rnd() < g.checkChance) {
           g.x = door.x;
           g.door = door;
           g.state = 'enter';
           g.timer = 0.5;
           emit('enterRoom', { cell: door.cell });
+        } else if (peek && h.rnd() < g.checkChance * 0.5) {
+          g.x = peek.x;
+          g.door = peek;
+          g.state = 'peekRoom';
+          g.timer = 2.6;
+          g.phase = 0;
+          emit('peekRoom', { cell: peek.cell });
         } else if (end) {
           g.x = g.face > 0 ? g.max : g.min;
           g.state = 'pause';
           g.timer = 1 + h.rnd() * 1;
           g.flip = true;
         } else if (g.turn > 0 && h.rnd() < g.turn * dt) {
-          g.state = 'pause'; // 갑자기 뒤돌아보기
-          g.timer = 0.8 + h.rnd() * 0.8;
-          g.flip = true;
-          g.face = -g.face;
+          // 갑자기 뒤돌아보기: 먼저 멈칫하고 서요 (그때 피하면 돼요)
+          g.state = 'halt';
+          g.timer = 0.75;
           emit('look');
         }
         break;
       }
+      case 'halt':
+        g.timer -= dt;
+        if (g.timer <= 0) {
+          g.state = 'pause';
+          g.timer = 0.9 + h.rnd() * 0.7;
+          g.flip = true;
+          g.face = -g.face;
+        }
+        break;
       case 'pause':
         g.timer -= dt;
+        turnTo(g, g.face > 0 ? 0 : Math.PI, dt, 6);
         if (g.timer <= 0) {
           // 끝에 닿았을 때는 돌아서 걷고, 갑자기 뒤돌아본 뒤에는 원래 방향으로 다시 걸어요
           if (g.flip) g.face = -g.face;
@@ -751,13 +961,121 @@
           g.state = 'walk';
         }
         break;
-      case 'listen':
+      case 'listen': {
         g.timer -= dt;
-        if (g.timer <= 0) g.state = 'walk';
+        const c = g.clue;
+        if (c) turnTo(g, Math.atan2(c.z - g.z, c.x - g.x), dt, 7);
+        if (g.timer <= 0) g.state = c ? 'investigate' : 'walk';
         break;
+      }
+      case 'investigate': {
+        const c = g.clue;
+        if (!c) {
+          g.state = 'return';
+          break;
+        }
+        const tz = c.z < WALL_Z ? Math.max(Z_MIN, Math.min(Z_MAX - 0.15, c.z)) : c.z;
+        if (walkTo(h, g, c.x, tz, g.speed * 1.5, dt)) searchAt(h, emit);
+        break;
+      }
+      case 'goCheck': {
+        const sp = h.spots[g.target];
+        const f = spotFront(sp);
+        // 숨는 걸 봤으면 서둘러 와요 (그 사이에 나와서 도망칠 수 있어요)
+        if (walkTo(h, g, f.x, f.z, g.saw === g.target ? g.chaseSpeed * 0.75 : g.speed * 1.6, dt)) {
+          g.state = 'check';
+          g.timer = 1.1;
+          emit('check', { spot: g.target, kind: sp.kind });
+        }
+        break;
+      }
+      case 'check': {
+        const sp = h.spots[g.target];
+        turnTo(g, sp.z < 0 ? -Math.PI / 2 : Math.PI / 2, dt);
+        g.timer -= dt;
+        if (g.timer <= 0) {
+          if (p.hidden === g.target) {
+            emit('found', { spot: g.target });
+            caught('found');
+            return;
+          }
+          emit('empty', { spot: g.target });
+          g.saw = -1;
+          g.state = 'search';
+          g.timer = 1.6;
+          g.phase = g.ang;
+        }
+        break;
+      }
+      case 'goStairs': {
+        const sp = h.spots[g.target];
+        // 내려가는 계단 바로 위에 서서 아래를 비춰 봐요
+        if (walkTo(h, g, sp.downX != null ? sp.downX : sp.x, 1.0, g.chaseSpeed * 0.8, dt)) {
+          g.state = 'peekStairs';
+          g.timer = 3.4;
+          emit('stairsLook');
+        }
+        break;
+      }
+      case 'peekStairs':
+        g.timer -= dt;
+        turnTo(g, Math.PI / 2, dt, 6);
+        if (g.timer <= 0) {
+          g.saw = -1;
+          g.state = 'search';
+          g.timer = 1.4;
+          g.phase = g.ang;
+          g.cool = 4;
+        }
+        break;
+      case 'search':
+        g.timer -= dt;
+        g.ang = wrap(g.phase + Math.sin((2.4 - g.timer) * 2.6) * 1.2);
+        if (g.timer <= 0) g.state = 'return';
+        break;
+      case 'roomSearch': {
+        // 문으로 들어가 교실 안을 이리저리 비춰 봐요
+        const d = g.door;
+        if (g.phase === 0) {
+          if (walkTo(h, g, d.x, ROOM_Z0 + 0.5, g.speed * 1.5, dt)) g.phase = 1;
+        } else {
+          g.timer -= dt;
+          g.ang = wrap(Math.PI / 2 + Math.sin((3.5 - g.timer) * 1.9) * 1.25);
+          if (g.timer <= 0) {
+            g.state = 'return';
+            g.cool = 3;
+          }
+        }
+        break;
+      }
+      case 'peekRoom': {
+        // 순찰하다가 열린 교실 문 안을 비춰 봐요
+        const d = g.door;
+        if (g.phase === 0) {
+          if (walkTo(h, g, d.x, WALL_Z + 0.1, g.speed, dt)) g.phase = 1;
+        } else {
+          g.timer -= dt;
+          g.ang = wrap(Math.PI / 2 + Math.sin((2.6 - g.timer) * 2.4) * 0.8); // 문 옆 벽에 바짝 붙으면 안 보여요
+          if (g.timer <= 0) {
+            g.state = 'return';
+            g.cool = 5;
+          }
+        }
+        break;
+      }
+      case 'return': {
+        // 순찰하던 길로 돌아가요
+        const tx = Math.max(g.min, Math.min(g.max, g.x));
+        if (walkTo(h, g, tx, 0, g.speed, dt)) {
+          g.state = 'walk';
+          g.face = g.x >= g.max - 0.05 ? -1 : g.x <= g.min + 0.05 ? 1 : g.face;
+        }
+        break;
+      }
       case 'enter':
         g.timer -= dt;
         g.z += (1.6 - g.z) * Math.min(1, dt * 6);
+        turnTo(g, Math.PI / 2, dt);
         if (g.timer <= 0) {
           g.state = 'inRoom';
           g.timer = 3.5 + h.rnd() * 2;
@@ -782,37 +1100,81 @@
         break;
       case 'alert':
         g.timer -= dt;
-        if (g.timer <= 0) g.state = 'chase';
+        turnTo(g, Math.atan2(p.z - g.z, p.x - g.x), dt);
+        if (g.timer <= 0) {
+          g.state = 'chase';
+          g.lostT = 0;
+        }
         break;
-      case 'chase':
+      case 'chase': {
         if (p.hidden >= 0) {
-          g.state = 'search';
-          g.timer = 2;
-          emit('lost');
+          // 숨는 걸 봤으면 그 자리로, 못 봤으면 마지막으로 본 곳을 살펴요
+          if (g.saw === p.hidden) {
+            g.target = g.saw;
+            g.state = h.spots[g.saw].kind === 'stairs' ? 'goStairs' : 'goCheck';
+          } else {
+            setClue(h, g.lastSeen.x, g.lastSeen.z, 'lost', true);
+            g.state = 'investigate';
+          }
+          emit('lost', { saw: g.saw >= 0 });
           break;
         }
-        g.face = sign(p.x - g.x) || g.face;
-        g.x += g.face * g.chaseSpeed * dt;
-        g.z += (p.z - g.z) * Math.min(1, dt * 3);
+        if (!g.lastSeen) g.lastSeen = { x: p.x, z: p.z };
+        const s = sight(h);
+        if (s > 0 || (pd < 2 && regionOf(h, p.x, p.z) === regionOf(h, g.x, g.z))) {
+          g.lastSeen = { x: p.x, z: p.z };
+          g.lostT = 0;
+          walkTo(h, g, p.x, p.z, g.chaseSpeed, dt);
+        } else {
+          g.lostT += dt;
+          walkTo(h, g, g.lastSeen.x, g.lastSeen.z, g.chaseSpeed, dt);
+          if (g.lostT > 1.2) {
+            setClue(h, g.lastSeen.x, g.lastSeen.z, 'lost', true);
+            g.state = 'investigate';
+            emit('lost', { saw: false });
+          }
+        }
         break;
-      case 'search':
-        g.timer -= dt;
-        if (g.timer <= 0) g.state = 'walk';
-        break;
+      }
       default:
         break;
     }
 
-    if (g.state !== 'alert' && g.state !== 'chase' && inLight(h)) {
-      g.state = 'alert';
-      g.timer = 0.5;
-      g.face = sign(p.x - g.x) || g.face;
-      emit('spotted');
+    // 불빛에 비치면 의심이 쌓여요: 가까우면 금방, 멀면 천천히
+    if (!hunting(g) && inCorridor(g)) {
+      const s = sight(h);
+      if (s > 0) {
+        const wary = g.state !== 'walk' && g.state !== 'pause' && g.state !== 'halt';
+        const T = (0.25 + 0.9 * (1 - s)) * (wary ? 0.6 : 1);
+        if (g.sus < 0.3 && g.sus + dt / T >= 0.3) emit('suspect');
+        g.sus = Math.min(1, g.sus + dt / T);
+        g.glimpse = { x: p.x, z: p.z };
+        if (g.sus >= 1) {
+          g.state = 'alert';
+          g.timer = 0.5;
+          g.sus = 0;
+          g.lastSeen = { x: p.x, z: p.z };
+          g.clue = null;
+          emit('spotted');
+        }
+      } else if (g.sus > 0) {
+        // 잠깐 봤다가 놓치면 그 자리를 살피러 와요
+        if (g.sus >= 0.3 && g.glimpse && g.state !== 'goCheck' && g.state !== 'check') {
+          setClue(h, g.glimpse.x, g.glimpse.z, 'glimpse');
+          if (g.state !== 'investigate') {
+            g.state = 'listen';
+            g.timer = 0.35;
+          }
+          g.glimpse = null;
+        }
+        g.sus = Math.max(0, g.sus - dt * 0.5);
+      }
     }
-    if (p.hidden < 0 && inCorridor(g) && Math.abs(p.x - g.x) < CATCH && Math.abs(p.z - g.z) < 1.3) {
-      h.caught++;
-      emit('caught');
-      resetHall(h);
+    // 닿으면 잡혀요 (벽 너머는 안 돼요)
+    if (p.hidden < 0 && inCorridor(g) && pd < CATCH) {
+      const same = regionOf(h, p.x, p.z) === regionOf(h, g.x, g.z);
+      const door = doorNear(h, p.x, 0.9) != null && Math.abs(p.z - WALL_Z) < 0.6 && Math.abs(g.z - WALL_Z) < 0.6;
+      if (same || door) caught('touch');
     }
   }
 
@@ -941,22 +1303,34 @@
     // 복도
     HALL_WIDTH,
     HALL_HEIGHT,
+    WALL_Z,
     Z_MIN,
     Z_MAX,
+    ROOM_DEPTH,
+    ROOM_Z0,
+    ROOM_Z1,
+    DOOR_HALF,
     WALK,
     RUN,
     CATCH,
     HIDE_REACH,
+    STAIRS_REACH,
     NOISE,
+    SEE_HALF,
     HALLS,
     cellKind,
     cellWidth,
     doorX,
+    doorsOf,
     createHall,
     resetHall,
     stepHall,
+    sight,
     inLight,
     inCorridor,
+    hunting,
+    roomAt,
+    walkable,
     spotNear,
     route,
     // 확인

@@ -88,7 +88,7 @@
     roomHints: 0,
     solved: false,
   };
-  const player = { x: 0, z: 0, yaw: 0, pitch: 0, bob: 0, moving: false, running: false, stepT: 0 };
+  const player = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, bob: 0, moving: false, running: false, stepT: 0 };
   let level = null;
   let st = null; // 지금 단계의 상태 (방 수수께끼, 복도 …)
 
@@ -365,6 +365,7 @@
     level = L;
     level.scene.add(camera);
     player.x = L.spawn.x;
+    player.y = 0;
     player.z = L.spawn.z;
     player.yaw = L.spawn.yaw;
     player.pitch = L.spawn.pitch || 0;
@@ -677,7 +678,7 @@
 
   function placeCamera() {
     const bob = player.moving ? Math.sin(player.bob) * (player.running ? 0.05 : 0.025) : 0;
-    camera.position.set(player.x, W3.EYE + bob, player.z);
+    camera.position.set(player.x, W3.EYE + bob + (player.y || 0), player.z);
     camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
   }
 
@@ -911,7 +912,7 @@
       },
       hint(n) {
         const rc = recipes[Math.min(k, recipes.length - 1)];
-        if (n === 1) return '먼저 나눗셈으로 첫 물약 양을 구해! 소수는 소수점을 같이 옮기고, 분수는 나누는 수를 뒤집어 곱해. 그다음 「○○에 대한 비율」은 기준량(○○) × 비율이야. 예: 200의 3/4 → 150, 75% → 150!';
+        if (n === 1) return '먼저 나눗셈으로 첫 물약 양을 구해! 소수는 소수점을 같이 옮기고, 분수는 나누는 수를 뒤집어 곱해. 그다음 「○○에 대한 비율」은 기준량(○○) × 비율이야. 예: 200의 50% → 100, 10% → 20, 100% → 200!';
         return '지금 ' + rc.color + ' 물약은 ' + rc.parts.map((c, i) => c + ' ' + rc.amounts[i] + 'mL').join(', ') + '!';
       },
     };
@@ -1022,17 +1023,24 @@
       playing = false;
       if (level && level.setOnAir) level.setOnAir(false);
     };
-    function play(lamp) {
+    const SYM = { '.': '●', '-': '▬' };
+    function play(lamp, tape) {
       stop();
       playing = true;
-      const unit = slow ? 0.28 : 0.17;
+      const unit = slow ? 0.3 : 0.22;
       let t = 0.5;
+      // 받아 적기 종이: 소리가 날 때마다 ● ▬ 가 숫자 칸에 저절로 찍혀요
+      if (tape) tape.forEach((cell) => (cell.textContent = ''));
       E.morseTimeline(code, unit).forEach((s) => {
         const on = t;
         timers.push(
           setTimeout(() => {
             level.setOnAir(true);
             if (lamp) lamp.classList.add('on');
+            if (tape) {
+              tape[s.digit].textContent += SYM[s.sym];
+              tape[s.digit].classList.add('now');
+            }
             HG.sound.beep(s.on, 760);
           }, on * 1000)
         );
@@ -1040,50 +1048,45 @@
           setTimeout(() => {
             level.setOnAir(false);
             if (lamp) lamp.classList.remove('on');
+            if (tape) tape[s.digit].classList.remove('now');
           }, (on + s.on) * 1000)
         );
         t += s.on + Math.max(s.off, unit);
       });
       timers.push(setTimeout(() => (playing = false), t * 1000));
     }
+    /** 패널 안에 작은 모스 부호표 */
+    function morseTable() {
+      const tb = el('div', 'mtable');
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].forEach((d) => {
+        const it = el('div', 'mrow');
+        it.append(el('b', null, String(d)), el('span', null, Array.from(E.MORSE[d]).map((c) => SYM[c]).join('')));
+        tb.append(it);
+      });
+      return tb;
+    }
     function consolePanel() {
       openPanel('유령 방송 장비', (b) => {
         const lamp = el('div', 'lamp');
         const listen = el('button', 'btn', '▶ 유령 방송 듣기');
-        listen.addEventListener('click', () => play(lamp));
         const r1 = el('div', 'prow');
         r1.append(lamp, listen);
-        b.append(el('p', 'step', '삐- 소리와 빨간 불빛을 잘 보고 들어요. 숫자 4개예요.'), r1);
-        // 받아 적기
-        let memo = '';
-        const memoBox = el('div', 'memo', ' ');
-        const r2 = el('div', 'prow');
-        [
-          ['●', '•'],
-          ['▬', '—'],
-          ['띄기', ' / '],
-        ].forEach(([label, sym]) => {
-          const s = el('button', 'sym', label);
-          s.style.padding = '0 0.9em';
-          s.addEventListener('click', () => {
-            memo += sym;
-            memoBox.textContent = memo;
-          });
-          r2.append(s);
+        b.append(el('p', 'step', '방송을 들으면 ● (짧게 삐) 와 ▬ (길게 삐—) 가 종이에 저절로 찍혀요. 숫자 4개예요.'), r1);
+        const tapeRow = el('div', 'tape');
+        const tape = [0, 1, 2, 3].map((i) => {
+          const box = el('div', 'tcell');
+          const sy = el('div', 'tsym', '');
+          box.append(el('span', 'tnum', i + 1 + '번째'), sy);
+          tapeRow.append(box);
+          return sy;
         });
-        const clr = el('button', 'sym', '지우기');
-        clr.style.padding = '0 0.9em';
-        clr.addEventListener('click', () => {
-          memo = '';
-          memoBox.textContent = ' ';
-        });
-        r2.append(clr);
-        b.append(el('p', 'step', '받아 적기 (메모)'), memoBox, r2, el('p', 'step', '모스 부호표는 왼쪽 벽에 있어요 · 비밀번호 4자리'));
+        listen.addEventListener('click', () => play(lamp, tape));
+        b.append(tapeRow, el('p', 'step', '모스 부호표와 똑같은 모양을 찾아요'), morseTable());
         keypad(b, {
           len: 4,
           onEnter(v) {
             if (v !== code) {
-              say('지지직… 비밀번호가 틀렸어. 다시 들어 봐!', 3000);
+              say('지지직… 비밀번호가 틀렸어. 종이에 찍힌 모양을 표와 다시 맞춰 봐!', 3000);
               return false;
             }
             stop();
@@ -1109,7 +1112,7 @@
       hint(n) {
         if (n === 1) {
           slow = true;
-          return '이제 방송이 천천히 나와! 숫자 하나에 소리가 꼭 5번씩 나. 짧은 ● 와 긴 ▬ 를 메모해서 벽의 표와 맞춰 봐.';
+          return '● 로 시작하면 ● 의 개수가 그 숫자야 (●●●▬▬ = 3). ▬ 로 시작하면 ▬ 개수에 5를 더해 (▬▬●●● = 7). ▬▬▬▬▬ 는 0!';
         }
         return '비밀번호 앞의 두 자리는 「' + code.slice(0, 2) + '」야!';
       },
@@ -1333,12 +1336,22 @@
       heart: 0,
       steps: 0,
       lit: null,
+      room: null, // 지금 들어가 있는 열린 교실
+      roomsSeen: new Set(),
       interact() {},
     };
+    player.y = 0;
     paintHintBtn();
     showMap('다음 목적지: ' + where(nextPlace), def.intro, '복도로 나가기', () => {
-      say('노랗게 빛나는 ' + nextPlace + ' 문으로 가요! 숨을 곳 앞에서 「숨기」 버튼 (또는 E · Space)', 5000);
+      say('노랗게 빛나는 ' + nextPlace + ' 문으로 가요! 숨을 곳 앞에서 「숨기」 (E · Space). 문이 열린 교실은 걸어 들어갈 수 있어요', 5500);
     });
+  }
+
+  /** 숨은 곳에서 보는 자리: 청소함 틈 / 화장실 문 안 / 아래층 계단참 */
+  function hideView(sp) {
+    if (sp.kind === 'locker') return { x: sp.x, z: -1.22, y: 0, yaw: Math.PI };
+    if (sp.kind === 'stairs') return { x: sp.downX, z: E.WALL_Z + 3.55, y: -1.53, yaw: 0 };
+    return { x: sp.x, z: 2.15, y: 0, yaw: 0 };
   }
 
   function updateHall(dt) {
@@ -1347,12 +1360,11 @@
       st.caughtT -= dt;
       if (st.caughtT <= 0) {
         showOverlay(null);
-        guardSay('👻 다시 해 보자! 불빛이 안 닿을 때, 숨을 곳에서 숨을 곳으로!', 4000);
+        guardSay('👻 다시 해 보자! 불빛에 오래 비치지 말고, 숨을 곳에서 숨을 곳으로!', 4000);
       }
       return;
     }
     const m = readMove();
-    const hidden = h.player.hidden >= 0;
     const turn = (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0);
     player.yaw += turn * 2.3 * dt;
     const sin = Math.sin(player.yaw);
@@ -1369,16 +1381,29 @@
     if (p.hidden < 0) {
       player.x = p.x;
       player.z = p.z;
+      player.y += (0 - player.y) * Math.min(1, dt * 10);
     }
     footsteps(dt, 0.12);
+    const g = h.guard;
     for (const e of h.events) {
       if (e.type === 'spotted') {
         HG.sound.play('whistle');
-        guardSay('👮 “거기 누구냐!” — 빨리 숨어요!', 2600);
-      } else if (e.type === 'lost') guardSay('👮 “이상하다… 어디 갔지?”', 2400);
-      else if (e.type === 'heard') guardSay('👮 “응? 무슨 소리지?” — 뛰면 발소리가 나요!', 2400);
-      else if (e.type === 'look') guardSay('👀 경비 아저씨가 뒤를 돌아봐요!', 1800);
-      else if (e.type === 'enterRoom') {
+        guardSay('👮 “거기 누구냐!” — 열린 교실이나 계단으로 도망쳐서 따돌려요!', 3000);
+      } else if (e.type === 'suspect') guardSay('👮 “응? 거기 누구 있나?” — 살피러 와요! 그 자리 말고 다른 곳으로 피해요', 2800);
+      else if (e.type === 'lost') {
+        if (e.saw) guardSay('👮 “거기 숨었지!” — 숨는 걸 봤어요! 얼른 나와서 도망가요!', 3000);
+        else guardSay('👮 “이상하다… 어디 갔지?” — 마지막으로 본 곳을 찾아봐요', 2600);
+      } else if (e.type === 'heard') guardSay('👮 “무슨 소리지?” — 소리 난 곳을 살피러 와요! 뛰지 마요', 2600);
+      else if (e.type === 'look') guardSay('👀 경비 아저씨가 멈춰 섰어요… 곧 뒤돌아봐요!', 1800);
+      else if (e.type === 'check') {
+        HG.sound.play('creak');
+        guardSay(e.kind === 'toilet' ? '👮 끼익… 화장실 문을 열어 봐요!' : '👮 덜컹! 청소함을 열어 봐요!', 2000);
+      } else if (e.type === 'empty') guardSay('👮 “없네… 잘못 봤나?”', 2000);
+      else if (e.type === 'stairsLook') guardSay('👮 “아래층으로 도망갔나…?” — 계단 위에서 비춰 봐요. 조금 기다렸다 올라가요', 3200);
+      else if (e.type === 'roomSearch') guardSay('🔦 경비 아저씨가 교실 안을 뒤져요! 다른 문으로 빠져나가요', 3000);
+      else if (e.type === 'peekRoom') {
+        if (st.room === e.cell) guardSay('🔦 경비 아저씨가 이 교실 문 안을 비춰요! 문 옆 벽에 바짝 붙어요', 2600);
+      } else if (e.type === 'enterRoom') {
         HG.sound.play('creak');
         guardSay('🔦 경비 아저씨가 교실을 살피러 들어갔어요. 지금이 기회!', 3000);
         level.lightRoom(e.cell, true);
@@ -1388,22 +1413,26 @@
         level.lightRoom(e.cell, false);
         st.lit = null;
       } else if (e.type === 'hide') {
-        HG.sound.play('click');
-        const sp = h.spots[e.spot];
+        HG.sound.play(e.kind === 'stairs' ? 'step' : 'click');
+        const v = hideView(h.spots[e.spot]);
         // 숨은 곳에서 복도 쪽을 봐요
-        player.yaw = sp.z < 0 ? Math.PI : 0;
-        player.pitch = 0;
-      } else if (e.type === 'unhide') HG.sound.play('click');
+        player.yaw = v.yaw;
+        player.pitch = e.kind === 'stairs' ? 0.32 : 0;
+        if (e.kind === 'stairs') guardSay('🏃 아래층 계단으로 내려왔어요! 경비 아저씨 발소리가 멀어지면 올라가요', 3200);
+      } else if (e.type === 'unhide') HG.sound.play(e.kind === 'stairs' ? 'step' : 'click');
       else if (e.type === 'caught') {
         game.caught++;
         game.penalty += E.CAUGHT_PENALTY;
         save();
         HG.sound.play('hit');
         if (st.lit != null) level.lightRoom(st.lit, false);
+        st.lit = null;
+        $('caughtWhy').textContent = e.why === 'found' ? '“찾았다!” 숨은 곳을 경비 아저씨가 열어 봤어요' : '“거기 누구냐!” 경비 아저씨에게 잡혔어요';
         showOverlay('caughtScreen');
         st.caughtT = 1.8;
         player.x = h.player.x;
         player.z = h.player.z;
+        player.y = 0;
         player.yaw = h.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
         player.pitch = 0;
       } else if (e.type === 'goal') {
@@ -1414,35 +1443,46 @@
       }
     }
     h.events.length = 0;
-    // 숨었을 때: 청소함 틈 / 교실 문 안
+    // 열린 교실에 들어왔을 때
+    const room = h.player.hidden < 0 ? E.roomAt(h, h.player.x, h.player.z) : null;
+    st.room = room ? room.cell : null;
+    if (room && !st.roomsSeen.has(room.cell)) {
+      st.roomsSeen.add(room.cell);
+      say('🚪 ' + room.name + ' 교실에 들어왔어요. 복도에서는 안 보여요!' + (room.doors.length > 1 ? ' 다른 문으로 빠져나갈 수도 있어요' : ' 문이 하나뿐이라 쫓길 때는 막다른 곳이에요'), 4200);
+    }
+    // 숨었을 때: 청소함 틈 / 화장실 문 안 / 계단참
     const nowHidden = h.player.hidden >= 0;
     const sp = nowHidden ? h.spots[h.player.hidden] : null;
     $('peek').hidden = !nowHidden;
     $('peekLabel').hidden = !nowHidden;
     if (sp) {
-      $('peek').classList.toggle('door', sp.kind !== 'locker');
-      $('peekLabel').textContent = '🙈 ' + sp.label + '에 숨었어요 · 움직이면 나가요';
-      player.x = sp.x;
-      player.z = sp.kind === 'locker' ? -1.22 : sp.kind === 'toilet' ? 2.15 : 1.95;
-      const base = sp.z < 0 ? Math.PI : 0;
-      let d = player.yaw - base;
+      $('peek').classList.toggle('door', sp.kind === 'toilet');
+      $('peek').classList.toggle('stairs', sp.kind === 'stairs');
+      $('peekLabel').textContent = sp.kind === 'stairs' ? '🏃 아래층 계단에 숨었어요 · 움직이면 올라가요' : '🙈 ' + sp.label + '에 숨었어요 · 움직이면 나가요';
+      const v = hideView(sp);
+      const k = Math.min(1, dt * 7);
+      player.x += (v.x - player.x) * k;
+      player.z += (v.z - player.z) * k;
+      player.y += (v.y - player.y) * k;
+      let d = player.yaw - v.yaw;
       d = Math.atan2(Math.sin(d), Math.cos(d));
-      player.yaw = base + Math.max(-1.1, Math.min(1.1, d));
+      player.yaw = v.yaw + Math.max(-1.1, Math.min(1.1, d));
     }
     torch.intensity = nowHidden ? 0 : 4.5;
     const act = $('actBtn');
+    const near = E.spotNear(h, h.player.x, h.player.z);
+    const stairsNear = !nowHidden && near >= 0 && h.spots[near].kind === 'stairs';
     act.setAttribute('aria-pressed', String(nowHidden));
-    act.textContent = nowHidden ? '나가기' : '숨기';
-    act.classList.toggle('far', !nowHidden && E.spotNear(h, h.player.x) < 0);
+    act.textContent = nowHidden ? (sp.kind === 'stairs' ? '올라가기' : '나가기') : stairsNear ? '계단으로' : '숨기';
+    act.classList.toggle('far', !nowHidden && near < 0);
     // 경비원 모습·소리
-    const g = h.guard;
     level.guard.sync(g, dt, game.t);
-    const chase = g.state === 'alert' || g.state === 'chase';
+    const chase = E.hunting(g);
     $('danger').hidden = !chase;
     const dx = g.x - player.x;
     const dz = g.z - player.z;
     const dist = Math.hypot(dx, dz);
-    if (E.inCorridor(g) && (g.state === 'walk' || g.state === 'chase' || g.state === 'enter' || g.state === 'exit')) {
+    if (E.inCorridor(g) && g.moving) {
       st.steps -= dt;
       if (st.steps <= 0) {
         st.steps = g.state === 'chase' ? 0.27 : 0.55;
@@ -1454,7 +1494,8 @@
         }
       }
     }
-    const facing = Math.sign(player.x - g.x) === g.face;
+    // 경비원이 이쪽을 보고 가까이 있으면 심장이 두근두근
+    const facing = Math.cos(Math.atan2(h.player.z - g.z, h.player.x - g.x) - g.ang) > 0.5;
     if (E.inCorridor(g) && dist < g.cone + 4 && (facing || chase)) {
       st.heart -= dt;
       if (st.heart <= 0) {
@@ -1480,27 +1521,38 @@
     const y = hh / 2 + 6;
     g.fillStyle = 'rgba(255, 255, 255, 0.18)';
     g.fillRect(x0, y - 3, x1 - x0, 6);
-    h.spots.forEach((sp) => {
+    // 열린 교실 (위쪽 칸), 숨을 곳, 계단
+    h.rooms.forEach((r) => {
+      g.fillStyle = 'rgba(159, 240, 216, 0.22)';
+      g.fillRect(x0 + r.x0 * k + 2, y - 30, (r.x1 - r.x0) * k - 4, 18);
       g.fillStyle = '#9ff0d8';
+      r.doors.forEach((d) => g.fillRect(x0 + d * k - 3, y - 14, 6, 10));
+    });
+    h.spots.forEach((sp) => {
+      g.fillStyle = sp.kind === 'stairs' ? '#7dd3fc' : '#9ff0d8';
       g.fillRect(x0 + sp.x * k - 4, y - 14, 8, 28);
     });
     const gd = h.guard;
-    if (E.inCorridor(gd)) {
-      g.fillStyle = gd.state === 'alert' || gd.state === 'chase' ? 'rgba(255, 80, 80, 0.55)' : 'rgba(255, 240, 170, 0.5)';
-      const a = x0 + gd.x * k;
-      const b = x0 + (gd.x + gd.face * gd.cone) * k;
-      g.fillRect(Math.min(a, b), y - 10, Math.abs(b - a), 20);
+    const inRoomY = (z) => (z >= E.WALL_Z ? y - 21 : y);
+    if (E.inCorridor(gd) && gd.z < E.WALL_Z) {
+      const cx = Math.cos(gd.ang);
+      if (Math.abs(cx) > 0.3) {
+        g.fillStyle = E.hunting(gd) ? 'rgba(255, 80, 80, 0.55)' : 'rgba(255, 240, 170, 0.5)';
+        const a = x0 + gd.x * k;
+        const b = x0 + (gd.x + cx * gd.cone) * k;
+        g.fillRect(Math.min(a, b), y - 10, Math.abs(b - a), 20);
+      }
     }
-    const dot = (x, color, r) => {
+    const dot = (x, yy, color, r) => {
       g.fillStyle = color;
       g.beginPath();
-      g.arc(x0 + x * k, y, r, 0, Math.PI * 2);
+      g.arc(x0 + x * k, yy, r, 0, Math.PI * 2);
       g.fill();
     };
     g.fillStyle = '#ffd166';
     g.fillRect(x0 + h.goalX * k - 9, y - 18, 18, 36);
-    dot(gd.x, E.inCorridor(gd) ? '#ff6b6b' : 'rgba(255,107,107,0.35)', 11);
-    dot(h.player.x, '#ff8a1f', 11);
+    dot(gd.x, inRoomY(gd.z), E.inCorridor(gd) ? '#ff6b6b' : 'rgba(255,107,107,0.35)', 11);
+    dot(h.player.x, inRoomY(h.player.z), '#ff8a1f', 11);
     X.txt(g, '도착', x0 + h.goalX * k, 14, 20, '#ffd166');
     X.txt(g, '나', x0 + h.player.x * k, 14, 20, '#ffb066');
     X.txt(g, '경비', x0 + gd.x * k, hh - 10, 20, '#ff9a9a');

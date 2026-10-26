@@ -57,6 +57,7 @@ test('과학실: 나눗셈·비율 물약은 10mL 눈금으로 딱 맞고, 마�
       rc.lines.slice(1).forEach((ln, i) => {
         const r = /비율 = (\S+)$/.exec(ln);
         assert.ok(r, ln);
+        assert.ok(['10%', '50%', '100%'].includes(r[1]), '쉬운 비율만: ' + ln);
         assert.ok(Math.abs(rc.amounts[0] * val(r[1]) - rc.amounts[i + 1]) < 1e-6, ln);
         assert.ok(ln.startsWith(rc.parts[0] + '에 대한 ' + rc.parts[i + 1]));
       });
@@ -189,15 +190,27 @@ test('우리 반 꾸미기: 담임 선생님·급훈·주번·떠든 사람·사
   assert.deepEqual(E.normalizeSettings({ school: '동암초등학교', myClass: '6-3', quiz: [] }).noisy, []);
 });
 
-test('복도: 출발할 때는 경비원 불빛 밖이고, 도착 문은 숨을 곳 사이에 있어요', () => {
+test('복도: 출발할 때는 경비원 불빛 밖이고, 숨을 곳(청소함·계단·열린 교실)이 너무 멀지 않아요', () => {
   for (const def of E.HALLS) {
     for (let seed = 1; seed <= 20; seed++) {
       const h = E.createHall(def, seed);
       assert.ok(!E.inLight(h), def.id);
       assert.ok(Math.abs(h.startX - h.guard.x) > h.guard.cone, def.id + ' 시작이 너무 가까워요');
-      assert.ok(h.spots.length >= 3, def.id);
-      // 숨을 곳 사이가 너무 멀지 않아요
-      for (let i = 1; i < h.spots.length; i++) assert.ok(h.spots[i].x - h.spots[i - 1].x <= 9.01, def.id);
+      const xs = bot.havens(h)
+        .map((v) => v.x)
+        .filter((x) => (x - h.startX) * h.dir >= -0.5 && (h.goalX - x) * h.dir > 0)
+        .concat([h.startX, h.goalX])
+        .sort((a, b) => a - b);
+      assert.ok(xs.length >= 5, def.id);
+      for (let i = 1; i < xs.length; i++) assert.ok(xs[i] - xs[i - 1] <= 9.01, def.id + ' 숨을 곳 사이가 멀어요 ' + xs[i - 1] + '→' + xs[i]);
+      // 열린 교실 문은 열린 교실 안으로 이어지고, 교실 쪽 벽은 못 지나가요
+      h.rooms.forEach((r) => {
+        r.doors.forEach((d) => {
+          assert.ok(E.walkable(h, d, 1.6), def.id + ' 문 통로');
+          assert.ok(E.walkable(h, d, E.ROOM_Z0 + 0.5), def.id + ' 교실 안');
+          assert.ok(!E.walkable(h, d + 0.6, 1.4), def.id + ' 문 옆 벽');
+        });
+      });
     }
   }
 });
@@ -219,35 +232,175 @@ test('복도: 조심스러운 아이 같은 자동 플레이어가 모든 복도
   }
 });
 
-test('복도: 불빛 안에 서 있으면 들키고, 잡히면 처음으로 돌아가요', () => {
-  const h = E.createHall(E.HALLS[0], 3);
+/** 경비원을 순찰 상태로 두고, 아이를 경비원 앞 거리 d 에 세워요 */
+function facing(def, d) {
+  const h = E.createHall(def, 3);
   const g = h.guard;
-  h.player.x = g.x + g.face * 3;
-  E.stepHall(h, { vx: 0, vz: 0 }, 1 / 60);
-  assert.equal(g.state, 'alert');
-  for (let i = 0; i < 600 && !h.caught; i++) E.stepHall(h, { vx: 0, vz: 0 }, 1 / 60);
+  h.player.x = g.x + g.face * d;
+  h.player.z = 0;
+  return h;
+}
+const steps = (h, n, input) => {
+  for (let i = 0; i < n && !h.caught; i++) {
+    E.stepHall(h, input || {}, 1 / 60);
+    h.events.length = 0;
+  }
+};
+
+test('복도: 불빛 안에 오래 있으면 들키고(가까우면 빨리), 잡히면 처음으로 돌아가요', () => {
+  const near = facing(E.HALLS[0], 2);
+  steps(near, 30);
+  assert.equal(near.guard.state === 'alert' || near.guard.state === 'chase', true, '2m 앞은 0.5초 안에 들켜요');
+  const far = facing(E.HALLS[0], 6.5);
+  steps(far, 30);
+  assert.ok(!E.hunting(far.guard), '멀면 0.5초로는 안 들켜요');
+  assert.ok(far.guard.sus > 0.3, '그래도 의심은 해요');
+  const h = facing(E.HALLS[0], 3);
+  steps(h, 600);
   assert.equal(h.caught, 1);
   assert.equal(h.player.x, h.startX);
-  // 숨으면 안전해요
+});
+
+test('복도: 잠깐 비쳤다가 빠지면 "응?" 하고 그 자리를 살피러 와요', () => {
+  const h = facing(E.HALLS[2], 6);
+  const spotAt = h.player.x;
+  steps(h, 24); // 0.4초
+  assert.ok(h.guard.sus > 0.3 && !E.hunting(h.guard));
+  h.player.x = h.guard.x - h.guard.face * 6; // 등 뒤로 쏙
+  steps(h, 60);
+  assert.equal(['listen', 'investigate'].includes(h.guard.state), true, h.guard.state);
+  assert.ok(Math.abs(h.guard.clue.x - spotAt) < 0.01);
+});
+
+test('복도: 경비원은 뒤돌아보기 전에 멈칫해요', () => {
+  const def = E.HALLS[4];
+  const h = E.createHall(def, 9);
+  const g = h.guard;
+  let sawHalt = false;
+  for (let i = 0; i < 60 * 60 && !sawHalt; i++) {
+    const was = g.state;
+    E.stepHall(h, {}, 1 / 60);
+    if (was === 'walk' && g.state === 'halt') {
+      sawHalt = true;
+      const face = g.face;
+      steps(h, 30);
+      assert.equal(g.face, face, '멈칫하는 동안은 아직 앞을 봐요');
+      steps(h, 30);
+      assert.equal(g.face, -face, '그다음 뒤돌아봐요');
+    }
+    h.events.length = 0;
+  }
+  assert.ok(sawHalt);
+});
+
+test('복도: 숨기 버튼을 누를 때 걷고 있어도 숨어 있고, 손을 뗐다가 다시 움직이면 나와요', () => {
+  const h = E.createHall(E.HALLS[0], 3);
+  const sp = h.spots.findIndex((s) => s.kind === 'locker');
+  h.player.x = h.spots[sp].x;
+  E.stepHall(h, { vx: E.WALK, vz: 0, hide: true }, 1 / 60);
+  assert.equal(h.player.hidden, sp);
+  steps(h, 30, { vx: E.WALK, vz: 0 });
+  assert.equal(h.player.hidden, sp, '계속 누르고 있어도 그대로 숨어 있어요');
+  steps(h, 2, {});
+  steps(h, 2, { vx: E.WALK, vz: 0 });
+  assert.equal(h.player.hidden, -1);
+  // 숨어 있으면 경비원이 옆을 지나가도 안전해요
   const h2 = E.createHall(E.HALLS[0], 3);
-  const sp = h2.spots[0];
-  h2.player.x = sp.x;
+  h2.player.x = h2.spots[sp].x;
   E.stepHall(h2, { hide: true }, 1 / 60);
-  assert.equal(h2.player.hidden, 0);
-  h2.guard.x = sp.x + h2.guard.face * -2;
-  for (let i = 0; i < 300; i++) E.stepHall(h2, {}, 1 / 60);
+  h2.guard.x = h2.spots[sp].x - h2.guard.face * 2;
+  steps(h2, 300);
   assert.equal(h2.caught, 0);
 });
 
-test('복도: 뛰면 발소리를 듣고 돌아봐요', () => {
+test('복도: 쫓아올 때 눈앞에서 청소함에 숨으면 열어 봐요', () => {
+  const h = facing(E.HALLS[2], 3);
+  const g = h.guard;
+  const sp = h.spots.findIndex((s) => s.kind === 'locker');
+  g.state = 'chase';
+  g.lastSeen = { x: h.player.x, z: 0 };
+  g.x = h.spots[sp].x - 3;
+  g.face = 1;
+  g.ang = 0;
+  h.player.x = h.spots[sp].x;
+  E.stepHall(h, { hide: true }, 1 / 60);
+  const ev = h.events.find((e) => e.type === 'hide');
+  assert.ok(ev && ev.seen, '숨는 걸 봤어요');
+  h.events.length = 0;
+  let found = false;
+  for (let i = 0; i < 600 && !h.caught; i++) {
+    E.stepHall(h, {}, 1 / 60);
+    if (h.events.some((e) => e.type === 'found')) found = true;
+    h.events.length = 0;
+  }
+  assert.ok(found && h.caught === 1);
+});
+
+test('복도: 계단으로 내려가면 경비원은 위에서 비춰 보기만 하고 돌아가요', () => {
+  const def = E.HALLS[2]; // 본관 2층: 출발 자리가 계단이에요
+  const h = E.createHall(def, 4);
+  const g = h.guard;
+  const st = h.spots.findIndex((s) => s.kind === 'stairs');
+  assert.ok(st >= 0);
+  h.player.x = h.spots[st].x + 1;
+  g.state = 'chase';
+  g.lastSeen = { x: h.player.x, z: 0 };
+  g.x = h.player.x + 3.5;
+  g.face = -1;
+  g.ang = Math.PI;
+  E.stepHall(h, { hide: true }, 1 / 60);
+  assert.equal(h.player.hidden, st);
+  const seen = [];
+  for (let i = 0; i < 60 * 12; i++) {
+    E.stepHall(h, {}, 1 / 60);
+    if (seen[seen.length - 1] !== g.state) seen.push(g.state);
+    h.events.length = 0;
+  }
+  assert.ok(seen.includes('peekStairs'), seen.join('>'));
+  assert.equal(h.caught, 0);
+  assert.equal(['return', 'walk'].includes(g.state), true, seen.join('>'));
+});
+
+test('복도: 열린 교실로 들어가면 복도에서는 안 보이고, 경비원은 문으로만 들어와요', () => {
+  const def = E.HALLS[2];
+  const h = E.createHall(def, 5);
+  const r = h.rooms[0];
+  const g = h.guard;
+  // 교실 문으로 들어가기 (문 근처에서 안쪽으로 걸으면 문 가운데로 들어가요)
+  h.player.x = r.doors[0] + 0.5;
+  h.player.z = 0.8;
+  steps(h, 60, { vx: 0, vz: E.WALK });
+  assert.ok(h.player.z > E.ROOM_Z0, '교실 안: ' + h.player.z);
+  // 경비원이 복도에서 이쪽을 봐도 안 보여요
+  g.x = h.player.x - 3;
+  g.z = 0;
+  g.ang = Math.atan2(h.player.z - g.z, h.player.x - g.x);
+  assert.equal(E.sight(h), 0);
+  // 교실 안을 살피러 오면 문을 지나 들어와요
+  g.clue = { x: r.doors[0], z: 1.0, spot: -1, room: r.cell };
+  g.state = 'investigate';
+  let maxZ = 0;
+  for (let i = 0; i < 400; i++) {
+    E.stepHall(h, {}, 1 / 60);
+    h.events.length = 0;
+    if (g.z > E.WALL_Z - 0.2) assert.ok(r.doors.some((d) => Math.abs(g.x - d) < 0.6) || g.z > E.ROOM_Z0, '벽을 뚫고 다니지 않아요');
+    maxZ = Math.max(maxZ, g.z);
+  }
+  assert.ok(maxZ > E.ROOM_Z0, '교실 안까지 들어와요');
+});
+
+test('복도: 뛰면 발소리를 듣고 소리 난 곳을 살피러 와요', () => {
   const h = E.createHall(E.HALLS[2], 5);
   const g = h.guard;
   g.state = 'walk';
   g.face = 1;
+  g.ang = 0;
   h.player.x = g.x - 5; // 등 뒤 5m
   E.stepHall(h, { vx: E.RUN, vz: 0, run: true }, 1 / 60);
-  assert.equal(g.state === 'listen' || g.state === 'alert', true);
-  assert.equal(g.face, -1);
+  assert.equal(g.state, 'listen');
+  assert.ok(Math.abs(g.clue.x - h.player.x) < 0.1);
+  steps(h, 50);
+  assert.equal(g.state === 'investigate' || E.hunting(g), true, g.state);
 });
 
 test('시간 표시', () => {

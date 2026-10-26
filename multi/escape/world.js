@@ -581,13 +581,14 @@
     L.scene.add(g);
 
     let walkPhase = 0;
+    let aim = 0;
     return {
       group: g,
       spot,
       beam,
       /** 경비원 상태(core)를 3D 모습에 옮겨요 */
       sync(st, dt, t) {
-        const moving = st.state === 'walk' || st.state === 'chase' || st.state === 'enter' || st.state === 'exit';
+        const moving = st.moving;
         const speed = st.state === 'chase' ? 15 : 8;
         if (moving) walkPhase += dt * speed;
         const sw = moving ? Math.sin(walkPhase) * (st.state === 'chase' ? 0.7 : 0.45) : 0;
@@ -599,14 +600,20 @@
         g.visible = !inside;
         g.position.x = st.x;
         g.position.z = st.z;
-        let yaw = st.face > 0 ? Math.PI / 2 : -Math.PI / 2;
-        if (st.state === 'enter' || st.state === 'exit') yaw = 0; // 교실 문 쪽(+z)을 봐요
-        if (st.state === 'listen' || st.state === 'search') yaw += Math.sin(t * 2.4) * 0.5;
-        g.rotation.y += (yaw - g.rotation.y) * Math.min(1, dt * 8);
+        // core 의 ang: +x 쪽이 0, +z 쪽(교실·계단 쪽)이 π/2
+        let yaw = Math.atan2(Math.cos(st.ang), Math.sin(st.ang));
+        if (st.state === 'listen') yaw += Math.sin(t * 2.4) * 0.3;
+        const d = Math.atan2(Math.sin(yaw - g.rotation.y), Math.cos(yaw - g.rotation.y));
+        g.rotation.y += d * Math.min(1, dt * 10);
+        // 계단 아래를 비출 때는 손전등을 아래로
+        const down = st.state === 'peekStairs' ? 1 : 0;
+        aim += (down - aim) * Math.min(1, dt * 4);
+        spot.target.position.set(0.1, 0.2 - aim * 2.2, 6 - aim * 2);
+        beam.rotation.x = aim * 0.42;
         spot.intensity = inside ? 0 : 30 * (0.94 + Math.sin(t * 13) * 0.03 + Math.sin(t * 31) * 0.02);
         beam.visible = !inside;
         bang.visible = st.state === 'alert' || st.state === 'chase';
-        ask.visible = st.state === 'search' || st.state === 'listen';
+        ask.visible = !bang.visible && (st.sus > 0.3 || ['listen', 'investigate', 'search', 'goCheck', 'check', 'roomSearch', 'goStairs', 'peekStairs', 'halt'].indexOf(st.state) >= 0);
       },
     };
   }
@@ -651,7 +658,7 @@
 
     // 교실 쪽 벽 (z = +1.5)
     const roomWindows = {};
-    const doorsOpen = new Set(hall.spots.filter((s) => s.kind === 'door').map((s) => Math.round(s.x * 10)));
+    const doorsOpen = new Set([].concat(...hall.rooms.map((r) => r.doors)).map((x) => Math.round(x * 10)));
     hall.cells.forEach((c) => buildCellFront(L, kit, c, hall, run, doorsOpen, roomWindows, wallM));
 
     // 숨을 곳: 청소함
@@ -727,6 +734,74 @@
     return L;
   };
 
+  /** 문이 열린 교실 안: 청소 시간처럼 책상을 뒤로 밀어 둔 캄캄한 교실 (들어가서 숨거나, 다른 문으로 빠져나가요) */
+  function buildRoomInside(L, kit, c, holes, run) {
+    const HW = 1.5;
+    const HH = 3;
+    const RD = E.ROOM_DEPTH;
+    const x0 = c.x0;
+    const x1 = c.x1;
+    const w = x1 - x0;
+    const mid = (x0 + x1) / 2;
+    const zb = HW + RD; // 창문 벽
+    const zc = HW + RD / 2;
+    kit.flat(w, RD, mid, 0.004, zc, M.wood, [0, 0, w / 2, RD / 2]);
+    kit.flat(w, RD, mid, HH, zc, M.ceiling, [0, 0, w / 1.2, RD / 1.2], false);
+    for (let x = x0 + 1.5; x < x1 - 0.5; x += 3) for (let z = HW + 1.6; z < zb - 0.5; z += 2.4) ceilingLamp(kit, x, z, HH, 0);
+    // 복도 쪽 벽의 교실 쪽 면 (문·높은 창 구멍은 그대로)
+    wallRun(kit, { axis: 'x', fixed: HW + 0.1, from: x0, to: x1, face: 1, material: M.wallClass, holes });
+    holes
+      .filter((hl) => hl.y0 > 1)
+      .forEach((hl) => kit.panel(hl.b - hl.a, hl.y1 - hl.y0, (hl.a + hl.b) / 2, (hl.y0 + hl.y1) / 2, HW + 0.06, 0, M.glassFrost));
+    holes
+      .filter((hl) => hl.y0 === 0)
+      .forEach((hl) => {
+        // 문틀 안쪽 (벽 두께)
+        kit.panel(0.1, hl.y1, hl.a, hl.y1 / 2, HW + 0.05, Math.PI / 2, M.darkWood);
+        kit.panel(0.1, hl.y1, hl.b, hl.y1 / 2, HW + 0.05, -Math.PI / 2, M.darkWood);
+      });
+    // 창문 벽 (밤하늘)
+    const win = [];
+    for (let x = x0 + 0.7; x + 2.0 <= x1 - 0.5; x += 2.6) win.push({ a: x, b: x + 2.0, y0: 0.95, y1: 2.5 });
+    wallRun(kit, { axis: 'x', fixed: zb, from: x0, to: x1, face: -1, material: M.wallClass, holes: win });
+    win.forEach((hl, i) => windowFrame(kit, { axis: 'x', fixed: zb, a: hl.a, b: hl.b, y0: hl.y0, y1: hl.y1, face: -1, glass: i % 3 === 1 ? M.nightMoon : M.night, bars: 2, uv: [i * 0.41, 0, i * 0.41 + 0.85, 1] }));
+    // 옆벽: 앞쪽(x0)에 칠판
+    wallRun(kit, { axis: 'z', fixed: x0, from: HW, to: zb, face: 1, material: M.wallClass });
+    wallRun(kit, { axis: 'z', fixed: x1, from: HW, to: zb, face: -1, material: M.wallClass });
+    const bm = tmat('roomBoard', () => X.roomBoard(), { clamp: true });
+    kit.box(0.05, 1.26, 3.66, x0 + 0.03, 1.55, zc, M.darkWood);
+    kit.panel(3.6, 1.2, x0 + 0.065, 1.55, zc, Math.PI / 2, bm);
+    kit.box(0.12, 0.04, 3.4, x0 + 0.08, 0.93, zc, M.darkWood); // 분필 받침
+    kit.block(0.55, 1.0, 0.9, x0 + 0.62, 0, zc, M.deskWood); // 교탁
+    kit.box(0.6, 0.04, 0.95, x0 + 0.62, 1.02, zc, M.deskTop);
+    // 뒤로 밀어 둔 책상과 책상 위에 거꾸로 올린 의자
+    const dz0 = E.ROOM_Z1 + 0.6;
+    for (let row = 0; row < 3; row++) {
+      const z = dz0 + row * 0.62;
+      if (z > zb - 0.3) break;
+      for (let x = x0 + 1.0; x <= x1 - 0.9; x += 0.78) {
+        const jx = x + ((row * 7 + Math.round(x * 3)) % 3) * 0.04;
+        kit.block(0.6, 0.04, 0.45, jx, 0.68, z, M.deskTop);
+        kit.block(0.56, 0.3, 0.03, jx, 0.38, z - 0.2, M.deskWood);
+        kit.block(0.03, 0.68, 0.03, jx - 0.27, 0, z - 0.19, M.darkMetal);
+        kit.block(0.03, 0.68, 0.03, jx + 0.27, 0, z - 0.19, M.darkMetal);
+        kit.block(0.03, 0.68, 0.03, jx - 0.27, 0, z + 0.19, M.darkMetal);
+        kit.block(0.03, 0.68, 0.03, jx + 0.27, 0, z + 0.19, M.darkMetal);
+        const chair = (row + Math.round(x)) % 2 ? M.chairBlue : M.chairGreen;
+        kit.block(0.38, 0.04, 0.36, jx, 0.72, z, chair);
+        kit.block(0.38, 0.3, 0.03, jx, 0.76, z + 0.17, chair);
+        kit.block(0.025, 0.38, 0.025, jx - 0.17, 0.76, z - 0.15, M.darkMetal);
+        kit.block(0.025, 0.38, 0.025, jx + 0.17, 0.76, z - 0.15, M.darkMetal);
+      }
+    }
+    // 할로윈 장식: 교탁 위 호박, 구석 거미줄
+    const pk = pumpkin(0.13);
+    pk.position.set(x0 + 0.62, 1.04, zc - 0.25);
+    L.scene.add(pk);
+    kit.panel(0.9, 0.9, x1 - 0.5, HH - 0.45, zb - 0.02, Math.PI, M.cobweb);
+    kit.panel(0.9, 0.9, x0 + 0.03, HH - 0.45, HW + 0.6, Math.PI / 2, M.cobweb);
+  }
+
   /** 교실 쪽 벽 한 칸 */
   function buildCellFront(L, kit, c, hall, run, doorsOpen, roomWindows, wallM) {
     const HW = 1.5;
@@ -739,20 +814,35 @@
     if (c.kind === 'stairs') {
       holes.push({ a: x0 + 0.5, b: x1 - 0.5, y0: 0, y1: 2.6 });
       wallRun(kit, { axis: 'x', fixed: HW, from: x0, to: x1, face: -1, material: wallM, holes });
-      // 올라가는 계단과 내려가는 계단
+      const SD = 4.2; // 계단실 깊이
+      const LOW = 1.8; // 아래층 쪽으로 보이는 깊이
       const stepM = lam(0x9a9488);
       const nose = lam(0x5a5650);
+      const ux = x0 + 1.4; // 올라가는 계단
+      const dx = x1 - 1.4; // 내려가는 계단 (들키면 여기로 도망쳐요)
       for (let i = 0; i < 9; i++) {
-        kit.block(1.6, 0.17 * (i + 1), 0.3, x0 + 1.4, 0, HW + 0.2 + i * 0.3, stepM);
-        kit.box(1.6, 0.03, 0.04, x0 + 1.4, 0.17 * (i + 1), HW + 0.07 + i * 0.3, nose);
+        kit.block(1.6, 0.17 * (i + 1), 0.3, ux, 0, HW + 0.2 + i * 0.3, stepM);
+        kit.box(1.6, 0.03, 0.04, ux, 0.17 * (i + 1), HW + 0.07 + i * 0.3, nose);
+        kit.block(1.6, LOW - 0.17 * (i + 1), 0.3, dx, -LOW, HW + 0.15 + i * 0.3, stepM);
+        kit.box(1.6, 0.03, 0.04, dx, -0.17 * (i + 1), HW + 0.02 + i * 0.3, nose);
       }
-      kit.block(1.6, 0.02, 3.2, x1 - 1.4, -0.0, HW + 1.6, M.black);
+      // 계단참 (아래층으로 꺾어 내려가는 곳)
+      kit.block(1.7, LOW - 1.53, SD - 2.7, dx, -LOW, HW + 2.7 + (SD - 2.7) / 2, stepM);
+      kit.panel(1.6, HH - 1.53, ux, 1.53 + (HH - 1.53) / 2, HW + 2.9, Math.PI, M.black); // 올라가는 계단 끝은 캄캄해요
+      kit.block(1.6, 1.53, SD - 2.9, ux, 0, HW + 2.9 + (SD - 2.9) / 2, M.black);
+      // 벽: 계단실은 아래층까지 이어져요
+      kit.panel(SD, HH + LOW, x0 + 0.5, (HH - LOW) / 2, HW + SD / 2, Math.PI / 2, wallM, [0, -LOW / 3, SD / 2, HH / 3]);
+      kit.panel(SD, HH + LOW, x1 - 0.5, (HH - LOW) / 2, HW + SD / 2, -Math.PI / 2, wallM, [0, -LOW / 3, SD / 2, HH / 3]);
+      kit.panel(w - 1, HH + LOW, mid, (HH - LOW) / 2, HW + SD, Math.PI, wallM, [0, -LOW / 3, (w - 1) / 2, HH / 3]);
+      kit.panel(SD, LOW, mid + 0.03, -LOW / 2, HW + SD / 2, Math.PI / 2, wallM, [0, 0, SD / 2, LOW / 3]);
+      kit.flat(w - 1, SD, mid, HH, HW + SD / 2, M.ceiling, [0, 0, (w - 1) / 1.2, SD / 1.2], false);
       kit.box(0.05, 0.9, 3.0, mid, 0.75, HW + 1.5, M.metal); // 난간
       kit.box(0.08, 0.06, 3.0, mid, 1.2, HW + 1.5, M.darkWood);
-      kit.block(w - 1, HH, 0.05, mid, 0, HW + 3.1, M.black);
-      kit.flat(w - 1, 3.1, mid, HH, HW + 1.55, M.black, null, false);
-      kit.panel(3.1, HH, x0 + 0.5, HH / 2, HW + 1.55, Math.PI / 2, M.black);
-      kit.panel(3.1, HH, x1 - 0.5, HH / 2, HW + 1.55, -Math.PI / 2, M.black);
+      kit.add(BOX(0.06, 0.06, 3.1), M.darkWood, x1 - 0.62, 0.9 - 0.77, HW + 1.35, 0, Math.atan2(1.53, 2.7)); // 내려가는 손잡이
+      // 계단참 벽: 아래층 표시와 비상구 불빛
+      const down = tmat('stairsDown-' + hall.def.floor, () => X.label('↓ ' + Math.max(1, hall.def.floor - 1) + '층 (아래층)', 'rgba(40,160,90,0.95)', '#ffffff'), { clamp: true });
+      kit.panel(1.3, 0.33, dx, -0.55, HW + SD - 0.02, Math.PI, down);
+      kit.panel(0.6, 0.3, dx, 0.35, HW + SD - 0.02, Math.PI, M.exitSign);
       const pl = tmat('plate-계단', () => X.namePlate('계단', '비상 대피로'), { clamp: true });
       kit.panel(0.9, 0.28, mid, 2.78, HW - 0.01, Math.PI, pl);
       extinguisher(kit, x1 - 0.35, HW - 0.2, 0);
@@ -810,6 +900,8 @@
         L.scene.add(glass);
         (roomWindows[c.index] = roomWindows[c.index] || []).push(glass);
       });
+    const openRoom = hall.rooms.find((r) => r.cell === c.index);
+    if (openRoom) buildRoomInside(L, kit, c, holes, run);
     doorXs.forEach((dx, i) => {
       const open = doorsOpen.has(Math.round(dx * 10));
       // 문틀
@@ -817,16 +909,13 @@
       kit.box(0.05, 2.1, 0.12, dx - 0.52, 1.05, HW, M.darkWood);
       kit.box(0.05, 2.1, 0.12, dx + 0.52, 1.05, HW, M.darkWood);
       // 문 (열린 문은 옆으로 밀려 있어요)
-      const shift = open ? 0.82 : 0;
+      const shift = open ? 0.96 : 0;
       kit.panel(1.0, 2.08, dx + shift, 1.04, HW + 0.05, Math.PI, i ? M.doorDark : M.door);
-      // 문 안쪽은 캄캄한 교실
+      if (openRoom) return;
+      // 닫힌 교실: 문 안쪽은 캄캄해요
       kit.panel(1.0, 2.1, dx, 1.05, HW + 0.9, Math.PI, M.void);
       kit.panel(0.85, 2.1, dx - 0.5, 1.05, HW + 0.45, Math.PI / 2, M.black);
       kit.panel(0.85, 2.1, dx + 0.5, 1.05, HW + 0.45, -Math.PI / 2, M.black);
-      if (open) {
-        // 열린 문 안: 책상 그림자
-        kit.block(0.6, 0.72, 0.45, dx - 0.15, 0, HW + 0.7, M.black);
-      }
     });
     // 팻말: 복도로 튀어나온 이름판 (앞문 위)
     const label = /^\d-\d$/.test(c.name) ? c.name.replace('-', '학년 ') + '반' : c.name;
