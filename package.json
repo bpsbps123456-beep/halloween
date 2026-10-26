@@ -1,0 +1,13 @@
+{
+  "name": "halloween-game-party",
+  "version": "1.0.0",
+  "private": true,
+  "description": "할로윈 게임 파티: 고군분투와 죽림고수를 할로윈판으로 각색한 교실용 웹 게임",
+  "scripts": {
+    "test": "node --test",
+    "start": "python3 -m http.server 8000"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

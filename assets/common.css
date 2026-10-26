@@ -1,0 +1,339 @@
+/* 할로윈 게임 파티 — 공통 스타일
+   하나의 밤 풍경만 쓰는 단일 다크 테마입니다. */
+:root {
+  --bg: #120d1c;
+  --bg-raised: #1d1530;
+  --bg-card: #261c3b;
+  --line: #3d2f58;
+  --text: #f6f1ff;
+  --text-dim: #b9abd2;
+  --pumpkin: #ff8a1f;
+  --pumpkin-deep: #d8620c;
+  --pumpkin-ink: #2b1400;
+  --candle: #ffd166;
+  --mint: #9ff0d8;
+  --danger: #ff5c5c;
+  --shade: rgba(14, 9, 24, 0.78);
+
+  --font-display: "Kirang Haerang", "Jua", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-ui: "Jua", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
+}
+
+[hidden] { display: none !important; }
+
+button, input { font: inherit; color: inherit; }
+
+/* ---------- 버튼 ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  min-height: 2.6em;
+  padding: 0.45em 1.3em;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pumpkin);
+  color: var(--pumpkin-ink);
+  font-family: var(--font-ui);
+  font-size: 1.05em;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 0.22em 0 var(--pumpkin-deep);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+  touch-action: manipulation;
+  user-select: none;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:active { transform: translateY(0.16em); box-shadow: 0 0.06em 0 var(--pumpkin-deep); }
+.btn:focus-visible { outline: 0.18em solid var(--candle); outline-offset: 0.18em; }
+
+.btn-quiet {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 0 0 0.12em var(--line);
+}
+.btn-quiet:hover { background: var(--bg-card); filter: none; }
+.btn-quiet:active { transform: translateY(0.08em); box-shadow: inset 0 0 0 0.12em var(--line); }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4em;
+  height: 2.4em;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 1em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.icon-btn:hover { background: var(--line); }
+.icon-btn:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.12em; }
+
+/* ---------- 게임 화면 ---------- */
+.game-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.game-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-block: max(8px, env(safe-area-inset-top, 0px)) 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+}
+.game-bar .back {
+  color: var(--text-dim);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.game-bar .back:hover { color: var(--text); }
+.game-bar .back:focus-visible { outline: 2px solid var(--candle); outline-offset: 3px; border-radius: 4px; }
+.game-bar h1 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.game-bar h1 small {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--text-dim);
+  letter-spacing: 0;
+  margin-left: 8px;
+}
+.game-bar .tools { display: flex; gap: 8px; }
+
+.stage-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  border-radius: 6px;
+  font-size: 16px; /* JS가 화면 크기에 맞게 다시 정합니다 */
+}
+.stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8em;
+  padding: 1em;
+  background: var(--shade);
+  text-align: center;
+}
+.overlay.clear { background: transparent; pointer-events: none; }
+.overlay.clear > * { pointer-events: auto; }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7em;
+  width: min(36em, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 1.1em 1.5em;
+  border-radius: 1em;
+  background: var(--bg-raised);
+  box-shadow: 0 0 0 0.12em var(--line), 0 1em 2.5em rgba(0, 0, 0, 0.45);
+}
+
+.big-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 3.6em;
+  line-height: 1;
+  color: var(--pumpkin);
+  text-shadow: 0 0.06em 0 var(--pumpkin-ink);
+  text-wrap: balance;
+}
+.sub-title { margin: 0; font-size: 1.1em; color: var(--text-dim); }
+
+.howto {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35em 0.8em;
+  margin: 0;
+  text-align: left;
+  font-size: 0.95em;
+}
+.howto dt { color: var(--candle); white-space: nowrap; }
+.howto dd { margin: 0; color: var(--text); }
+
+.row { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6em; }
+
+.key {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 0.35em;
+  border-radius: 0.3em;
+  background: var(--bg-card);
+  box-shadow: inset 0 -0.12em 0 var(--line);
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.result-score {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 3.4em;
+  line-height: 1;
+  color: var(--candle);
+  font-variant-numeric: tabular-nums;
+}
+.result-badge {
+  display: inline-block;
+  padding: 0.2em 0.9em;
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--mint);
+  font-size: 1.1em;
+}
+.result-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3em 1.2em;
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.95em;
+}
+.result-stats b { color: var(--text); font-weight: 400; }
+
+/* 이름 입력 */
+.name-form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5em;
+}
+.name-form label { color: var(--candle); }
+.name-form input {
+  width: 9em;
+  min-height: 2.4em;
+  padding: 0.3em 0.7em;
+  border: 0;
+  border-radius: 0.6em;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 0.12em var(--line);
+  color: var(--text);
+  font-size: 1em;
+  text-align: center;
+}
+.name-form input:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+
+/* 명예의 전당 */
+.board {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rank;
+  font-size: 0.95em;
+}
+.board li {
+  display: grid;
+  grid-template-columns: 2em 1fr auto;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.25em 0.6em;
+  border-radius: 0.5em;
+  counter-increment: rank;
+  font-variant-numeric: tabular-nums;
+}
+.board li::before {
+  content: counter(rank);
+  color: var(--text-dim);
+  text-align: center;
+}
+.board li:nth-child(1)::before { content: "🥇"; }
+.board li:nth-child(2)::before { content: "🥈"; }
+.board li:nth-child(3)::before { content: "🥉"; }
+.board li:nth-child(odd) { background: rgba(255, 255, 255, 0.03); }
+.board li.me { background: rgba(255, 138, 31, 0.22); }
+.board .who { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board .what { color: var(--candle); }
+.board li.empty { display: block; color: var(--text-dim); text-align: center; }
+.board li.empty::before { content: none; }
+
+.hint { margin: 0; color: var(--text-dim); font-size: 0.85em; }
+
+.rotate-hint {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-dim);
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+@media (orientation: portrait) and (max-width: 700px) {
+  .rotate-hint { display: block; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .btn:active { transition: none; }
+}

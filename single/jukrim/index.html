@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>죽림고스트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Kirang+Haerang&display=swap">
+<link rel="stylesheet" href="../../assets/common.css">
+<style>
+  .eyebrow { margin: 0; color: var(--text-dim); font-size: 0.85em; letter-spacing: 0.08em; }
+  .big-title { color: var(--mint); text-shadow: 0 0.06em 0 #0b2a24; }
+  .modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6em; width: 100%; }
+  .mode-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 0.15em;
+    padding: 0.6em 0.4em; border: 0; border-radius: 0.9em;
+    background: var(--bg-card); color: var(--text); cursor: pointer; touch-action: manipulation;
+    box-shadow: inset 0 0 0 0.12em var(--line);
+    transition: transform 0.08s ease, background 0.15s ease;
+  }
+  .mode-btn b { font-weight: 400; font-size: 1.25em; }
+  .mode-btn span { font-size: 0.8em; color: var(--text-dim); }
+  .mode-btn:hover { background: var(--line); }
+  .mode-btn:active { transform: translateY(0.1em); }
+  .mode-btn:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.12em; }
+  .mode-btn.picked { background: var(--mint); color: #0b2a24; box-shadow: none; }
+  .mode-btn.picked span { color: #1d5246; }
+  .tabs { display: flex; gap: 0.4em; }
+  .tabs button {
+    padding: 0.3em 0.9em; border: 0; border-radius: 999px; background: var(--bg-card);
+    color: var(--text-dim); cursor: pointer; touch-action: manipulation;
+  }
+  .tabs button[aria-selected="true"] { background: var(--mint); color: #0b2a24; }
+  .tabs button:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+  .new-record { margin: 0; color: var(--candle); font-size: 1.1em; }
+  @media (prefers-reduced-motion: reduce) { .mode-btn, .mode-btn:active { transition: none; transform: none; } }
+</style>
+</head>
+<body>
+<div class="game-page">
+  <header class="game-bar">
+    <a class="back" href="../../index.html">← 게임 목록</a>
+    <h1>죽림고스트<small>원작 · 죽림고수</small></h1>
+    <div class="tools">
+      <button class="icon-btn" id="pauseBtn" type="button" aria-label="잠깐 멈추기" title="잠깐 멈추기 (P)">⏸</button>
+      <button class="icon-btn" id="muteBtn" type="button">🔊</button>
+      <button class="icon-btn" id="fullBtn" type="button" aria-label="전체 화면" title="전체 화면">⛶</button>
+    </div>
+  </header>
+
+  <main class="stage-area" id="stageArea">
+    <div class="stage" id="stage">
+      <canvas id="game" aria-label="죽림고스트 게임 화면"></canvas>
+
+      <section class="overlay" id="titleScreen">
+        <div class="panel">
+          <p class="eyebrow">추억의 플래시 게임 ‘죽림고수’ 할로윈판</p>
+          <h2 class="big-title">죽림고스트</h2>
+          <p class="sub-title">꼬마 유령이 대나무숲에서 사방으로 날아오는 화살을 피해요</p>
+          <dl class="howto">
+            <dt><span class="key">←</span><span class="key">↑</span><span class="key">↓</span><span class="key">→</span> · WASD</dt><dd>유령 움직이기</dd>
+            <dt>터치 · 마우스</dt><dd>화면을 누른 채 끌면 그만큼 움직여요</dd>
+            <dt>빛나는 화살촉</dt><dd>끝에만 안 닿으면 돼요. 화살대와 깃은 스쳐도 괜찮아요!</dd>
+          </dl>
+          <div class="modes" role="group" aria-label="난이도 고르고 시작하기">
+            <button class="mode-btn" type="button" data-mode="easy"><b>쉬움</b><span>느린 화살, 미리 알려 줘요</span></button>
+            <button class="mode-btn" type="button" data-mode="normal"><b>보통</b><span>원작과 비슷해요</span></button>
+            <button class="mode-btn" type="button" data-mode="hard"><b>어려움</b><span>빠르고 예고 없이 와요</span></button>
+          </div>
+          <div class="row">
+            <button class="btn btn-quiet" id="boardBtn" type="button">명예의 전당</button>
+          </div>
+          <p class="hint">난이도를 누르면 바로 시작해요 · <span class="key">Space</span> 는 마지막에 고른 난이도로 시작</p>
+        </div>
+      </section>
+
+      <section class="overlay" id="boardScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title">명예의 전당</h2>
+          <div class="tabs" role="tablist" aria-label="난이도">
+            <button type="button" role="tab" data-tab="easy">쉬움</button>
+            <button type="button" role="tab" data-tab="normal">보통</button>
+            <button type="button" role="tab" data-tab="hard">어려움</button>
+          </div>
+          <ol class="board" id="boardList"></ol>
+          <p class="hint">이 컴퓨터(브라우저)에 저장된 난이도별 상위 10명</p>
+          <button class="btn" id="boardClose" type="button">닫기</button>
+        </div>
+      </section>
+
+      <section class="overlay" id="pauseScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title">잠깐 쉬어요</h2>
+          <div class="row">
+            <button class="btn" id="resumeBtn" type="button">계속하기</button>
+            <button class="btn btn-quiet" id="quitBtn" type="button">처음 화면</button>
+          </div>
+          <p class="hint"><span class="key">P</span> 또는 <span class="key">Esc</span> 로도 계속할 수 있어요</p>
+        </div>
+      </section>
+
+      <section class="overlay" id="resultScreen" hidden>
+        <div class="panel">
+          <p class="sub-title" id="resultMode">보통</p>
+          <p class="result-score" id="resultScore">0.00초</p>
+          <span class="result-badge" id="resultTitle">꼬마 유령</span>
+          <p class="new-record" id="newRecord" hidden>✨ 이 컴퓨터 새 기록! ✨</p>
+          <p class="result-stats" id="resultStats"></p>
+          <form class="name-form" id="nameForm" autocomplete="off">
+            <label for="nameInput">10위 안에 들었어요! 이름</label>
+            <input id="nameInput" name="name" maxlength="8" placeholder="이름" enterkeyhint="done">
+            <button class="btn" type="submit">기록 남기기</button>
+          </form>
+          <ol class="board" id="resultBoard"></ol>
+          <div class="row">
+            <button class="btn" id="retryBtn" type="button">다시 하기</button>
+            <button class="btn btn-quiet" id="homeBtn" type="button">처음 화면</button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <p class="rotate-hint">휴대폰은 가로로 돌리면 더 크게 보여요</p>
+  </main>
+</div>
+
+<script src="../../assets/common.js"></script>
+<script src="../../assets/art.js"></script>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

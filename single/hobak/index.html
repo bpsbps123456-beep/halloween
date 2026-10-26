@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>호박분투</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Kirang+Haerang&display=swap">
+<link rel="stylesheet" href="../../assets/common.css">
+<style>
+  .eyebrow { margin: 0; color: var(--text-dim); font-size: 0.85em; letter-spacing: 0.08em; }
+  .scoring { margin: 0; color: var(--text-dim); font-size: 0.85em; text-wrap: balance; }
+  .stage-pick { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.35em; font-size: 0.9em; color: var(--text-dim); }
+  .stage-pick button {
+    width: 2.1em; height: 2.1em; border: 0; border-radius: 50%;
+    background: var(--bg-card); color: var(--text); cursor: pointer; touch-action: manipulation;
+  }
+  .stage-pick button:hover:not(:disabled) { background: var(--pumpkin); color: var(--pumpkin-ink); }
+  .stage-pick button:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+  .stage-pick button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .fast-badge { margin: 0; padding: 0.15em 0.8em; border-radius: 999px; background: rgba(159, 240, 216, 0.15); color: var(--mint); font-size: 0.9em; }
+  .tally { display: grid; grid-template-columns: 1fr auto; gap: 0.25em 1.6em; margin: 0; min-width: 14em; font-size: 1em; font-variant-numeric: tabular-nums; }
+  .tally dt { text-align: left; color: var(--text-dim); }
+  .tally dd { margin: 0; text-align: right; }
+  .tally .bonus { color: var(--candle); }
+</style>
+</head>
+<body>
+<div class="game-page">
+  <header class="game-bar">
+    <a class="back" href="../../index.html">← 게임 목록</a>
+    <h1>호박분투<small>원작 · 고군분투</small></h1>
+    <div class="tools">
+      <button class="icon-btn" id="pauseBtn" type="button" aria-label="잠깐 멈추기" title="잠깐 멈추기 (P)">⏸</button>
+      <button class="icon-btn" id="muteBtn" type="button">🔊</button>
+      <button class="icon-btn" id="fullBtn" type="button" aria-label="전체 화면" title="전체 화면">⛶</button>
+    </div>
+  </header>
+
+  <main class="stage-area" id="stageArea">
+    <div class="stage" id="stage">
+      <canvas id="game" aria-label="호박분투 게임 화면"></canvas>
+
+      <section class="overlay" id="titleScreen">
+        <div class="panel">
+          <p class="eyebrow">추억의 플래시 게임 ‘고군분투’ 할로윈판</p>
+          <h2 class="big-title">호박분투</h2>
+          <p class="sub-title">호박군이 지붕을 건너 할로윈 파티장까지 달려가요</p>
+          <dl class="howto">
+            <dt><span class="key">Space</span> · 클릭 · 터치</dt><dd>점프</dd>
+            <dt>공중에서 한 번 더</dt><dd>거미줄을 호박 등불에 걸어요</dd>
+            <dt>누르고 있기 → 떼기</dt><dd>그네처럼 매달렸다가 휘익 날아가요</dd>
+            <dt>오래 매달리면</dt><dd>저절로 공중제비! 그때 거미줄을 또 걸 수 있어요</dd>
+          </dl>
+          <p class="scoring">사탕 5점 · 황금 별사탕 30점부터 단계마다 더 커져요 · 한 단계의 황금 별사탕을 모두 모으면 +200점</p>
+          <div class="row">
+            <button class="btn" id="startBtn" type="button">1단계부터 시작</button>
+            <button class="btn btn-quiet" id="boardBtn" type="button">명예의 전당</button>
+          </div>
+          <div class="stage-pick" id="stagePick"><span>단계 골라 하기</span></div>
+          <p class="fast-badge" id="fastBadge" hidden>👻 1.5배속 유령 모드 (다시 b·o·o 를 치면 꺼져요)</p>
+        </div>
+      </section>
+
+      <section class="overlay" id="boardScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title">명예의 전당</h2>
+          <p class="hint">이 컴퓨터(브라우저)에 저장된 상위 10명</p>
+          <ol class="board" id="boardList"></ol>
+          <button class="btn" id="boardClose" type="button">닫기</button>
+        </div>
+      </section>
+
+      <section class="overlay" id="pauseScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title">잠깐 쉬어요</h2>
+          <div class="row">
+            <button class="btn" id="resumeBtn" type="button">계속하기</button>
+            <button class="btn btn-quiet" id="quitBtn" type="button">처음 화면</button>
+          </div>
+          <p class="hint"><span class="key">P</span> 또는 <span class="key">Esc</span> 로도 계속할 수 있어요</p>
+        </div>
+      </section>
+
+      <section class="overlay" id="clearScreen" hidden>
+        <div class="panel">
+          <p class="sub-title" id="clearStage">1단계 · 호박 마을</p>
+          <h2 class="big-title">성공!</h2>
+          <dl class="tally" id="clearTally"></dl>
+          <p class="result-score" id="clearScore">0점</p>
+          <button class="btn" id="nextBtn" type="button">다음 단계로</button>
+          <p class="hint"><span class="key">Space</span> 를 눌러도 넘어가요</p>
+        </div>
+      </section>
+
+      <section class="overlay" id="resultScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title" id="resultTitle">아쉬워요!</h2>
+          <p class="result-score" id="resultScore">0점</p>
+          <p class="result-stats" id="resultStats"></p>
+          <form class="name-form" id="nameForm" autocomplete="off">
+            <label for="nameInput">10위 안에 들었어요! 이름</label>
+            <input id="nameInput" name="name" maxlength="8" placeholder="이름" enterkeyhint="done">
+            <button class="btn" type="submit">기록 남기기</button>
+          </form>
+          <ol class="board" id="resultBoard"></ol>
+          <div class="row">
+            <button class="btn" id="retryBtn" type="button">다시 하기</button>
+            <button class="btn btn-quiet" id="homeBtn" type="button">처음 화면</button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <p class="rotate-hint">휴대폰은 가로로 돌리면 더 크게 보여요</p>
+  </main>
+</div>
+
+<script src="../../assets/common.js"></script>
+<script src="../../assets/art.js"></script>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
