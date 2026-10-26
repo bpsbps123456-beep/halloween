@@ -93,6 +93,7 @@
   .puzzle .step { margin: 0; color: var(--text-dim); font-size: 0.85em; }
   .puzzle .q { margin: 0; font-size: 1.15em; line-height: 1.45; }
   .shake { animation: shake 0.35s; }
+  .wait { margin: 0; padding: 0.3em 0.9em; border-radius: 999px; background: rgba(255, 77, 77, 0.2); color: #ff9a9a; font-variant-numeric: tabular-nums; }
   @keyframes shake { 20%, 60% { transform: translateX(-0.4em); } 40%, 80% { transform: translateX(0.4em); } }
   .formula { font-size: 2em; letter-spacing: 0.08em; margin: 0; }
   .numpad { display: grid; grid-template-columns: repeat(5, 2.9em); gap: 0.35em; }
@@ -222,6 +223,7 @@
         <div class="puzzle" id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle">
           <button class="x" id="panelClose" type="button">✕ 닫기</button>
           <h3 id="panelTitle"></h3>
+          <p class="wait" id="panelWait" hidden></p>
           <div id="panelBody" style="display: contents"></div>
         </div>
       </div>
@@ -241,7 +243,7 @@
             <button class="btn btn-quiet" id="boardBtn" type="button">명예의 전당</button>
             <button class="btn btn-quiet" id="teacherBtn" type="button">선생님 설정</button>
           </div>
-          <p class="hint">방 6개 · 복도 5곳 · 힌트 한 번에 +30초 · 경비원에게 잡히면 +30초 · 종이와 연필이 있으면 좋아요</p>
+          <p class="hint">방 6개 · 복도 5곳 · 힌트 한 번에 +30초 · 경비원에게 잡히면 +30초 · 답이 틀리면 30초 기다려요 · 종이와 연필이 있으면 좋아요</p>
         </div>
       </section>
 
@@ -358,13 +360,13 @@
   </main>
 </div>
 
-<script src="../../assets/common.js"></script>
-<script src="../../assets/vendor/three.min.js"></script>
-<script src="core.js"></script>
-<script src="map.js"></script>
-<script src="tex.js"></script>
-<script src="world.js"></script>
-<script src="rooms.js"></script>
-<script src="game.js"></script>
+<script src="../../assets/common.js?v=8"></script>
+<script src="../../assets/vendor/three.min.js?v=8"></script>
+<script src="core.js?v=8"></script>
+<script src="map.js?v=8"></script>
+<script src="tex.js?v=8"></script>
+<script src="world.js?v=8"></script>
+<script src="rooms.js?v=8"></script>
+<script src="game.js?v=8"></script>
 </body>
 </html>

@@ -894,17 +894,26 @@
   /** 과학실 칠판: 물약 비율 */
   X.potionBoard = function (recipes) {
     const { c, g } = chalkBoard(1024, 380);
-    chalk(g, '마녀의 물약 만들기', 512, 52, 44, '#d9b3ff');
+    chalk(g, '마녀의 물약 만들기', 512, 46, 42, '#d9b3ff');
     recipes.forEach((rc, i) => {
-      const y = 128 + i * 76;
+      const x = 180 + i * 332;
       g.fillStyle = HGcolor(rc.color);
       g.beginPath();
-      g.arc(88, y, 20, 0, TAU);
+      g.arc(x - 70, 108, 16, 0, TAU);
       g.fill();
-      chalk(g, i + 1 + '. ' + rc.color + ' 물약 ' + rc.total + 'mL', 120, y - 2, 34, '#f4f1e6', 'left');
-      chalk(g, rc.parts.join(' : ') + '  =  ' + rc.ratio.join(' : '), 640, y - 2, 34, '#ffe9a8', 'left');
+      chalk(g, i + 1 + '. ' + rc.color + ' 물약', x + 10, 106, 32, '#f4f1e6');
+      rc.lines.forEach((ln, k) => {
+        g.save();
+        g.shadowColor = '#ffe9a8';
+        g.shadowBlur = 2;
+        txt(g, ln, x, 160 + k * 52, k ? 22 : 30, k ? '#ffe9a8' : '#d6f5ff', { maxW: 312 }); // ÷ 가 잘 보이는 글꼴
+        g.restore();
+      });
     });
-    chalk(g, '※ 비율대로 나누어 정확히 부을 것!  눈금은 10mL', 512, 350, 24, '#ffd0e6');
+    g.fillStyle = 'rgba(244,241,230,0.35)';
+    g.fillRect(345, 80, 3, 250);
+    g.fillRect(677, 80, 3, 250);
+    chalk(g, '※ 계산한 양을 정확히 부을 것!  눈금은 10mL', 512, 350, 24, '#ffd0e6');
     return c;
   };
   function HGcolor(name) {

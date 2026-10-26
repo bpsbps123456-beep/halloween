@@ -45,10 +45,10 @@
   }
 
   /* 탈출 경로: 우리 반(신관 2층) → 신관 3층 과학실 → 연결통로 → 본관 3층 도서관 → 2층 방송실·교무실 → 1층 보건실 → 중앙 현관
-     수수께끼는 6학년에 맞췄어요 (곱셈·혼합 계산, 비례배분, 속담, 모스 부호, 논리 추론). */
+     수수께끼는 6학년 1학기까지 배운 것에 맞췄어요 (소수·분수의 나눗셈, 비와 비율, 혼합 계산, 속담, 모스 부호, 논리 추론). */
   const STEPS = [
     { id: 'classroom', place: null, icon: '🎃', title: '칠판의 수수께끼', goal: '교실에 숨은 호박·박쥐·거미를 모두 세어 칠판의 식을 풀어요. 답은 선생님 책상 서랍 비밀번호!' },
-    { id: 'science', place: '과학실', icon: '🧪', title: '마녀의 물약', goal: '칠판의 비율대로 물약 양을 정확히 나눠 솥에 부어요. 물약 3가지를 만들어요.' },
+    { id: 'science', place: '과학실', icon: '🧪', title: '마녀의 물약', goal: '칠판의 나눗셈과 비율로 물약 양을 구해 솥에 부어요. 물약 3가지를 만들어요.' },
     { id: 'library', place: '도서관', icon: '📚', title: '속담 책장', goal: '책장 어딘가에서 보랏빛으로 빛나는 책 3권을 찾아 속담의 빈칸을 채워요.' },
     { id: 'broadcast', place: '방송실', icon: '📢', title: '유령의 모스 부호', goal: '유령이 보내는 삐- 소리와 불빛을 벽의 모스 부호표로 풀어 4자리 비밀번호를 찾아요.' },
     { id: 'office', place: '교무실', icon: '📝', title: '선생님 자리 찾기', goal: '화이트보드 단서로 선생님 다섯 분의 자리를 모두 알아내요.' },
@@ -110,7 +110,8 @@
     }
   }
 
-  /* ---------------- 2. 과학실: 비례배분 물약 ---------------- */
+  /* ---------------- 2. 과학실: 물약 (소수의 나눗셈 · 분수의 나눗셈 · 비와 비율) ----------------
+     첫 물약 양은 나눗셈으로, 나머지는 '○○에 대한 비율'로 구해요. 양은 모두 10mL 눈금에 딱 맞아요. */
   const POTIONS = ['빨강', '파랑', '노랑'];
   const RECIPES = { 보라: ['빨강', '파랑'], 초록: ['파랑', '노랑'], 주황: ['빨강', '노랑'], 갈색: ['빨강', '파랑', '노랑'] };
   const COLORS = {
@@ -124,16 +125,58 @@
     탁함: '#5b6152',
   };
   const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+  const num = (x) => String(Math.round(x * 1000) / 1000);
+  // 비율: [값, 분수로, 소수로, 백분율로]
+  const RATES = [
+    [1 / 2, '1/2', '0.5', '50%'],
+    [1 / 4, '1/4', '0.25', '25%'],
+    [3 / 4, '3/4', '0.75', '75%'],
+    [2 / 5, '2/5', '0.4', '40%'],
+    [3 / 5, '3/5', '0.6', '60%'],
+    [4 / 5, '4/5', '0.8', '80%'],
+    [3 / 2, '3/2', '1.5', '150%'],
+    [6 / 5, '6/5', '1.2', '120%'],
+    [1 / 5, '1/5', '0.2', '20%'],
+  ];
+  /** 첫 물약 양을 나눗셈 식으로: 소수의 나눗셈 또는 분수의 나눗셈 */
+  function divisionFor(A, rnd) {
+    if (rnd() < 0.5) {
+      const ds = [0.2, 0.4, 0.5, 0.6, 0.8, 0.05, 0.04, 0.02, 0.06, 0.08, 1.2, 1.5];
+      const d = ds[Math.floor(rnd() * ds.length)];
+      return num(A * d) + ' ÷ ' + num(d);
+    }
+    // (자연수) ÷ (분수): 예) 60 ÷ 3/8 = 160
+    const opts = [];
+    for (let b = 2; b <= 9; b++)
+      for (let a = 2; a < b; a++) {
+        const n = (A * a) / b;
+        if (gcd(a, b) === 1 && Number.isInteger(n) && n >= 6 && n <= 120) opts.push(n + ' ÷ ' + a + '/' + b);
+      }
+    if (!opts.length) return divisionFor(A, () => 0.1);
+    return opts[Math.floor(rnd() * opts.length)];
+  }
   function makeRecipe(color, rnd) {
     const parts = RECIPES[color];
-    let ratio;
-    do ratio = parts.map(() => randInt(1, parts.length === 2 ? 5 : 4, rnd));
-    while (ratio.reduce(gcd) !== 1 || ratio.every((r) => r === ratio[0]));
-    const sum = ratio.reduce((a, b) => a + b, 0);
-    const units = [];
-    for (let u = 20; u * sum <= 600; u += 10) if (u * sum >= 120) units.push(u);
-    const unit = units[Math.floor(rnd() * units.length)];
-    return { color, parts, ratio, total: unit * sum, amounts: ratio.map((r) => r * unit) };
+    for (;;) {
+      const A = 10 * randInt(8, 30, rnd); // 80~300mL
+      const amounts = [A];
+      const lines = [parts[0] + ' = ' + divisionFor(A, rnd) + ' (mL)'];
+      let ok = true;
+      const used = [];
+      for (let i = 1; i < parts.length && ok; i++) {
+        const fits = RATES.filter((r) => used.indexOf(r) < 0 && Math.abs((A * r[0]) % 10) < 1e-9 && A * r[0] <= 600 && Math.round(A * r[0]) !== A);
+        if (!fits.length) ok = false;
+        else {
+          const r = fits[Math.floor(rnd() * fits.length)];
+          used.push(r);
+          amounts.push(Math.round(A * r[0]));
+          const shown = r[1 + Math.floor(rnd() * 3)];
+          lines.push(parts[0] + '에 대한 ' + parts[i] + '의 비율 = ' + shown);
+        }
+      }
+      if (!ok) continue;
+      return { color, parts, amounts, lines, total: amounts.reduce((x, y) => x + y, 0) };
+    }
   }
   function makeScience(rnd) {
     const two = shuffle(['보라', '초록', '주황'], rnd).slice(0, 2);

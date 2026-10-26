@@ -39,7 +39,7 @@ test('교실: 호박·박쥐·거미 수가 모두 다르고, 식의 답이 두 
   }
 });
 
-test('과학실: 비례배분 물약은 10mL 눈금으로 딱 나누어지고, 마지막은 세 가지 색을 섞는 갈색이에요', () => {
+test('과학실: 나눗셈·비율 물약은 10mL 눈금으로 딱 맞고, 마지막은 세 가지 색을 섞는 갈색이에요', () => {
   for (const seed of SEEDS) {
     const { recipes } = E.createRun(seed, {}).puzzles.science;
     assert.equal(recipes.length, 3);
@@ -47,14 +47,20 @@ test('과학실: 비례배분 물약은 10mL 눈금으로 딱 나누어지고, �
     assert.notEqual(recipes[0].color, recipes[1].color);
     for (const rc of recipes) {
       assert.deepEqual(rc.parts, E.RECIPES[rc.color]);
-      const sum = rc.ratio.reduce((a, b) => a + b, 0);
       assert.equal(rc.amounts.reduce((a, b) => a + b, 0), rc.total);
-      rc.amounts.forEach((a, i) => {
-        assert.equal(a % 10, 0);
-        assert.equal(a * sum, rc.ratio[i] * rc.total);
+      rc.amounts.forEach((a) => assert.ok(a % 10 === 0 && a > 0 && a <= 600, String(a)));
+      // 칠판의 식을 직접 계산해서 맞는지 (아이들이 배운 소수·분수의 나눗셈, 비율)
+      const val = (t) => (t.endsWith('%') ? parseFloat(t) / 100 : t.includes('/') ? t.split('/')[0] / t.split('/')[1] : parseFloat(t));
+      const m = /= (\S+) ÷ (\S+) \(mL\)$/.exec(rc.lines[0]);
+      assert.ok(m, rc.lines[0]);
+      assert.ok(Math.abs(val(m[1]) / val(m[2]) - rc.amounts[0]) < 1e-6, rc.lines[0]);
+      rc.lines.slice(1).forEach((ln, i) => {
+        const r = /비율 = (\S+)$/.exec(ln);
+        assert.ok(r, ln);
+        assert.ok(Math.abs(rc.amounts[0] * val(r[1]) - rc.amounts[i + 1]) < 1e-6, ln);
+        assert.ok(ln.startsWith(rc.parts[0] + '에 대한 ' + rc.parts[i + 1]));
       });
-      assert.ok(rc.total >= 120 && rc.total <= 600);
-      assert.ok(!rc.ratio.every((x) => x === rc.ratio[0]), '1:1 같은 쉬운 비는 없어요');
+      assert.ok(!/비례|배분/.test(rc.lines.join()), '비례배분은 아직 안 배웠어요');
       const right = {};
       rc.parts.forEach((c, i) => (right[c] = rc.amounts[i]));
       assert.ok(E.checkPotion(rc, right));

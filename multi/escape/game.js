@@ -217,6 +217,21 @@
     if (e.target === panelWrap) closePanel();
   });
 
+  /* 답이 틀리면 30초 동안 다시 낼 수 없어요 (마구 눌러 맞히기 막기) */
+  const WRONG_WAIT = 30;
+  let waitUntil = 0;
+  const waitLeft = () => Math.max(0, Math.ceil((waitUntil - Date.now()) / 1000));
+  function wrongWait() {
+    waitUntil = Date.now() + WRONG_WAIT * 1000;
+  }
+  function mustWait() {
+    const left = waitLeft();
+    if (!left) return false;
+    HG.sound.play('tick');
+    say('⏳ 답이 틀려서 ' + left + '초 기다려야 해! 그동안 모둠 친구들과 다시 생각해 봐.', 2500);
+    return true;
+  }
+
   /** 숫자 자판: o = { len, onEnter(value) → 맞으면 true } */
   function keypad(body, o) {
     let value = '';
@@ -242,8 +257,9 @@
     del.addEventListener('click', back);
     const ok = el('button', 'btn', '확인');
     const enter = () => {
-      if (!value) return;
+      if (!value || mustWait()) return;
       if (!o.onEnter(value)) {
+        wrongWait();
         HG.sound.play('wrong');
         value = '';
         paint();
@@ -372,6 +388,7 @@
 
   function enterStage(i) {
     closePanel();
+    waitUntil = 0;
     game.stage = i;
     game.solved = false;
     game.roomHints = 0;
@@ -802,8 +819,9 @@
       const rc = recipes[k];
       openPanel('마녀의 물약 ' + (k + 1) + ' / ' + recipes.length, (b) => {
         const p = el('p', 'recipe');
-        p.append(document.createTextNode('칠판 ' + (k + 1) + '번: '), el('b', null, rc.color + ' 물약 ' + rc.total + 'mL'));
-        b.append(p, el('p', 'q', rc.parts.join(' : ') + ' = ' + rc.ratio.join(' : ')));
+        p.append(document.createTextNode('칠판 ' + (k + 1) + '번: '), el('b', null, rc.color + ' 물약'));
+        b.append(p);
+        rc.lines.forEach((ln) => b.append(el('p', 'q', ln)));
         const grid = el('div', 'beakers');
         const views = {};
         E.POTIONS.forEach((c) => {
@@ -840,6 +858,7 @@
         });
         const pour = el('button', 'btn', '🫕 솥에 붓기');
         pour.addEventListener('click', () => {
+          if (mustWait()) return;
           const res = E.potionResult(rc, amounts);
           amounts = { 빨강: 0, 파랑: 0, 노랑: 0 };
           if (res === rc.color) {
@@ -854,6 +873,7 @@
             say(rc.color + ' 물약 성공! 이번엔 ' + recipes[k].color + ' 물약이야.', 3500);
             potionPanel();
           } else {
+            wrongWait();
             level.setCauldron(res === 'almost' ? '#8fa38f' : E.COLORS['탁함']);
             level.puff();
             HG.sound.play('wrong');
@@ -874,7 +894,7 @@
         } else if (info.action === 'board')
           openPanel('칠판: 마녀의 물약 만들기', (b) => {
             recipes.forEach((rc, i) =>
-              b.append(el('p', 'q', i + 1 + '. ' + rc.color + ' 물약 ' + rc.total + 'mL — ' + rc.parts.join(' : ') + ' = ' + rc.ratio.join(' : ') + (i < k ? '  ✓' : '')))
+              b.append(el('p', 'q', i + 1 + '. ' + rc.color + ' 물약 — ' + rc.lines.join(' · ') + (i < k ? '  ✓' : '')))
             );
             b.append(el('p', 'step', '솥을 누르면 물약을 부을 수 있어요'));
           });
@@ -883,7 +903,7 @@
       },
       hint(n) {
         const rc = recipes[Math.min(k, recipes.length - 1)];
-        if (n === 1) return '비례배분! 전체 양을 비의 합으로 나누면 한 칸의 양이 나와. 예를 들어 200mL를 2 : 3 으로 나누면 200 ÷ 5 = 40 → 80mL와 120mL!';
+        if (n === 1) return '먼저 나눗셈으로 첫 물약 양을 구해! 소수는 소수점을 같이 옮기고, 분수는 나누는 수를 뒤집어 곱해. 그다음 「○○에 대한 비율」은 기준량(○○) × 비율이야. 예: 200의 3/4 → 150, 75% → 150!';
         return '지금 ' + rc.color + ' 물약은 ' + rc.parts.map((c, i) => c + ' ' + rc.amounts[i] + 'mL').join(', ') + '!';
       },
     };
@@ -920,6 +940,7 @@
           });
         }
         function pick(ch, idx) {
+          if (mustWait()) return;
           picked.push({ ch, idx });
           HG.sound.play('click');
           render();
@@ -936,6 +957,7 @@
               closePanel();
             }
           } else {
+            wrongWait();
             HG.sound.play('wrong');
             shake(line);
             setTimeout(() => {
@@ -1145,7 +1167,9 @@
             HG.sound.play('wrong');
             return;
           }
+          if (mustWait()) return;
           if (!E.checkSeats(office, seats)) {
+            wrongWait();
             say('음… 단서와 맞지 않는 자리가 있어. 하나씩 다시 확인해 봐!', 3500);
             HG.sound.play('wrong');
             shake(grid);
@@ -1179,7 +1203,9 @@
         row.append(inputEl, ok);
         row.addEventListener('submit', (e) => {
           e.preventDefault();
+          if (mustWait()) return;
           if (!E.checkAnswer(inputEl.value, q.a)) {
+            wrongWait();
             HG.sound.play('wrong');
             shake(row);
             say('땡! 다시 생각해 봐.', 2000);
@@ -1509,7 +1535,9 @@
         });
         const open = el('button', 'btn', '🔓 열기');
         open.addEventListener('click', () => {
+          if (mustWait()) return;
           if (!E.checkLock(game.run, values)) {
+            wrongWait();
             HG.sound.play('wrong');
             shake(lock);
             say('철컥… 안 열려. 그림과 같은 방의 숫자를 그 자리에 맞춰야 해!', 3500);
@@ -1860,6 +1888,10 @@
     placeCamera();
     view.renderer.render(level.scene, camera);
     if (game.mode === 'play') $('hudTime').textContent = '⏱ ' + E.formatTime(elapsed());
+    const w = waitLeft();
+    const pw = $('panelWait');
+    pw.hidden = !w || !panelOpen();
+    if (w) pw.textContent = '⏳ 틀렸어요! ' + w + '초 뒤에 다시 낼 수 있어요';
     if (shown('mapScreen')) drawMap();
   }
 
