@@ -330,7 +330,7 @@
     const team = $('teamInput').value.trim() || '1모둠';
     HG.store.set('escape:team', team);
     blurActive();
-    begin(team, (Math.random() * 1e9) | 0);
+    begin(team, settings.seed || (Math.random() * 1e9) | 0);
   });
   $('resumeBtn').addEventListener('click', () => {
     const s = loadSave();
@@ -1636,7 +1636,7 @@
   }
   $('againBtn').addEventListener('click', () => {
     blurActive();
-    begin(game.team, (Math.random() * 1e9) | 0);
+    begin(game.team, settings.seed || (Math.random() * 1e9) | 0);
   });
   $('homeBtn').addEventListener('click', goTitle);
 
@@ -1746,6 +1746,7 @@
       duty: $('tDuty').value,
       noisy: $('tNoisy').value,
       friends: $('tFriends').value,
+      seed: settings.seed, // 문제 고정은 그대로
     });
     HG.store.set(SETTINGS, settings);
     const code = E.encodeSettings(settings);

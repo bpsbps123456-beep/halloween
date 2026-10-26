@@ -830,6 +830,8 @@
       duty: names(r.duty, 4),
       noisy: names(r.noisy, 6),
       friends: names(r.friends, 30),
+      // 문제 고정: 숫자를 정해 두면 판마다 같은 문제가 나와요 (선생님이 정답을 미리 알 수 있게)
+      seed: Number.isInteger(r.seed) && r.seed > 0 && r.seed < 1e9 ? r.seed : 0,
     };
   }
 
@@ -842,8 +844,8 @@
   function encodeSettings(settings) {
     const s = normalizeSettings(settings);
     const out = { v: 1, school: s.school, myClass: s.myClass, quiz: s.quiz };
-    ['teacher', 'motto', 'duty', 'noisy', 'friends'].forEach((k) => {
-      if (s[k] && s[k].length) out[k] = s[k];
+    ['teacher', 'motto', 'duty', 'noisy', 'friends', 'seed'].forEach((k) => {
+      if (k === 'seed' ? s.seed : s[k] && s[k].length) out[k] = s[k];
     });
     return toBase64(new TextEncoder().encode(JSON.stringify(out)));
   }
