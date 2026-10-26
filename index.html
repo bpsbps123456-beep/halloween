@@ -137,18 +137,10 @@
   .best.none { color: var(--text-dim); }
   .card-body .btn { align-self: flex-start; margin-top: auto; font-size: 18px; }
 
-  .soon {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: 16px 20px;
-    padding: 20px;
-    border-radius: 18px;
-    border: 2px dashed var(--line);
-  }
-  .soon canvas { width: 96px; height: 96px; }
-  .soon h3 { margin: 0; font-size: 22px; font-weight: 400; color: var(--text); }
-  .soon p { margin: 6px 0 0; color: var(--text-dim); line-height: 1.55; }
+  .game-card[data-game="escape"] h3 { color: var(--candle); }
+  /* 함께 하기: 그림이 왼쪽, 설명이 오른쪽인 넓은 카드 */
+  .game-card.wide { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+  .game-card.wide .thumb { height: 100%; min-height: 220px; aspect-ratio: auto; }
 
   .tips {
     display: grid;
@@ -204,8 +196,8 @@
   .share .row { justify-content: center; }
 
   @media (max-width: 520px) {
-    .soon { grid-template-columns: 1fr; }
-    .soon canvas { width: 72px; height: 72px; }
+    .game-card.wide { grid-template-columns: 1fr; }
+    .game-card.wide .thumb { aspect-ratio: 16 / 9; min-height: 0; }
   }
 </style>
 </head>
@@ -279,13 +271,22 @@
       <span class="tag">멀티플레이</span>
       <p>친구와 같이 하는 게임</p>
     </div>
-    <div class="soon">
-      <canvas id="soonArt" aria-hidden="true"></canvas>
-      <div>
-        <h3>준비 중이에요</h3>
-        <p>여럿이 함께 즐기는 할로윈 게임이 이 자리에 들어올 예정이에요.</p>
+    <article class="game-card wide" data-game="escape">
+      <canvas class="thumb" data-thumb="escape" aria-hidden="true"></canvas>
+      <div class="card-body">
+        <p class="origin">3D 모둠 방탈출 · 화이트데이처럼 몰래몰래</p>
+        <h3>동암초 탈출</h3>
+        <p class="desc">할로윈 밤, 6-3 교실에 갇혔어요! 손전등을 든 경비 아저씨를 피해 어두운 복도를 몰래 지나고, 과학실·도서관·방송실·교무실·보건실의 수수께끼를 풀어 중앙 현관으로 탈출해요.</p>
+        <ul class="chips">
+          <li>모둠마다 한 대 · 태블릿·컴퓨터</li>
+          <li>방 6개 · 복도 5곳</li>
+          <li>6학년 수수께끼</li>
+          <li>30~40분</li>
+        </ul>
+        <p class="best" id="best-escape"></p>
+        <a class="btn" href="multi/escape/index.html">동암초 탈출 시작</a>
       </div>
-    </div>
+    </article>
   </section>
 
   <dl class="tips">
@@ -327,6 +328,15 @@
   else {
     jukEl.textContent = '아직 기록이 없어요. 첫 1등이 되어 보세요!';
     jukEl.classList.add('none');
+  }
+
+  const esc = HG.board.best('escape');
+  const escEl = document.getElementById('best-escape');
+  const mmss = (sec) => String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(Math.floor(sec % 60)).padStart(2, '0');
+  if (esc) escEl.textContent = '이 컴퓨터 1등 · ' + esc.name + ' ' + mmss(esc.score) + ' 만에 탈출';
+  else {
+    escEl.textContent = '아직 탈출한 모둠이 없어요. 첫 번째로 탈출해 보세요!';
+    escEl.classList.add('none');
   }
 
   /* 학생 기기로 열기: 인터넷 주소로 열었을 때만 (파일로 열었거나 미리보기 창 안이면 숨김) */
@@ -540,17 +550,93 @@
     art.arrow(ctx, 160 + p * 40, -40 + p * 330, Math.PI / 2 - 0.1, 'fast');
   }
 
-  function drawSoon(t) {
-    const c = document.getElementById('soonArt');
-    const ctx = fit(c, 96, 96, false);
-    ctx.clearRect(0, 0, 96, 96);
-    art.pumpkin(ctx, 34, 60, 20, 16, 'happy');
-    art.ghost(ctx, 64, 44 + (still ? 0 : Math.sin(t * 2) * 4), { t, r: 16, glow: false, face: 'happy' });
+  /* 동암초 탈출: 밤 복도 끝에서 손전등을 비추는 경비 아저씨 */
+  function drawEscapeThumb(ctx, t) {
+    const W = 480;
+    const H = 270;
+    const vx = 262;
+    const vy = 118;
+    const quad = (pts, fill) => {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.moveTo(pts[0], pts[1]);
+      for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+      ctx.closePath();
+      ctx.fill();
+    };
+    ctx.fillStyle = '#070816';
+    ctx.fillRect(0, 0, W, H);
+    quad([0, H, W, H, vx + 34, vy + 26, vx - 34, vy + 26], '#2a2f3a');
+    quad([0, 0, W, 0, vx + 34, vy - 26, vx - 34, vy - 26], '#14162a');
+    quad([0, 0, vx - 34, vy - 26, vx - 34, vy + 26, 0, H], '#1c2340');
+    quad([W, 0, vx + 34, vy - 26, vx + 34, vy + 26, W, H], '#232a48');
+    // 왼쪽 창문 (달빛)
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4;
+      const b = a + 0.16;
+      const x0 = (vx - 34) * a;
+      const x1 = (vx - 34) * b;
+      const y = (k, frac) => frac * (H - (H - vy - 26) * k) + (1 - frac) * ((vy - 26) * k);
+      quad([x0, y(a, 0.28), x1, y(b, 0.28), x1, y(b, 0.62), x0, y(a, 0.62)], i === 1 ? '#3a4a8a' : '#24305e');
+      // 바닥 달빛
+      quad([x0 + 40, H - (H - vy - 26) * a, x1 + 60, H - (H - vy - 26) * b, x1 + 90, H - (H - vy - 26) * b, x0 + 90, H - (H - vy - 26) * a], 'rgba(150, 170, 255, 0.08)');
+    }
+    // 오른쪽 교실 문
+    for (let i = 0; i < 3; i++) {
+      const a = 0.12 + i * 0.27;
+      const b = a + 0.1;
+      const x0 = W - (W - vx - 34) * a;
+      const x1 = W - (W - vx - 34) * b;
+      const top = (k) => (vy - 26) * k + 0.3 * (H - (H - vy - 26) * k - (vy - 26) * k);
+      const bot = (k) => H - (H - vy - 26) * k;
+      quad([x0, top(a), x1, top(b), x1, bot(b), x0, bot(a)], '#6b4e34');
+      quad([x0 - (x0 - x1) * 0.15, top(a) + (bot(a) - top(a)) * 0.1, x1 + (x0 - x1) * 0.15, top(b) + (bot(b) - top(b)) * 0.1, x1 + (x0 - x1) * 0.15, top(b) + (bot(b) - top(b)) * 0.4, x0 - (x0 - x1) * 0.15, top(a) + (bot(a) - top(a)) * 0.4], '#2b3352');
+    }
+    // 비상구 표지
+    ctx.fillStyle = '#1e9e55';
+    ctx.fillRect(vx - 14, vy - 22, 28, 12);
+    // 경비원과 손전등 빛
+    const sway = still ? 0 : Math.sin(t * 1.2) * 0.12;
+    const gx = vx + 6;
+    const gy = vy + 24;
+    const beam = ctx.createRadialGradient(gx, gy - 14, 2, gx, gy + 60, 150);
+    beam.addColorStop(0, 'rgba(255, 236, 170, 0.55)');
+    beam.addColorStop(1, 'rgba(255, 236, 170, 0)');
+    ctx.fillStyle = beam;
+    ctx.beginPath();
+    ctx.moveTo(gx + 3, gy - 16);
+    ctx.lineTo(gx - 130 + sway * 300, H);
+    ctx.lineTo(gx + 150 + sway * 300, H);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#0a0d1c';
+    ctx.fillRect(gx - 5, gy - 30, 10, 20);
+    ctx.fillRect(gx - 4, gy - 10, 3, 10);
+    ctx.fillRect(gx + 1, gy - 10, 3, 10);
+    ctx.beginPath();
+    ctx.arc(gx, gy - 34, 4, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#c9f24a';
+    ctx.fillRect(gx - 5, gy - 18, 10, 2);
+    ctx.fillStyle = '#fff6d0';
+    ctx.fillRect(gx + 4, gy - 22, 3, 2);
+    // 청소함에 숨은 호박군과 꼬마 유령
+    quad([18, 130, 70, 136, 70, 270, 18, 270], '#5b6b85');
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = '#1c222c';
+      ctx.fillRect(26, 150 + i * 7, 36, 3);
+    }
+    art.pumpkin(ctx, 92, 236, 20, 16, 'wow');
+    const by = 70 + (still ? 0 : Math.sin(t * 1.8) * 6);
+    art.ghost(ctx, 400, by, { t, r: 20, glow: true, face: 'happy' });
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.fillRect(0, 0, W, H);
   }
 
+  const DRAW = { hobak: drawHobakThumb, jukrim: drawJukrimThumb, escape: drawEscapeThumb };
   const thumbs = Array.from(document.querySelectorAll('.thumb')).map((c) => ({
     c,
-    draw: c.dataset.thumb === 'hobak' ? drawHobakThumb : drawJukrimThumb,
+    draw: DRAW[c.dataset.thumb],
     visible: true,
   }));
 
@@ -561,7 +647,6 @@
       if (!th.visible) return;
       th.draw(fit(th.c, 480, 270, true), t);
     });
-    drawSoon(t);
     if (!still) requestAnimationFrame(frame);
   }
 

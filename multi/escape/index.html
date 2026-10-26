@@ -9,168 +9,158 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Kirang+Haerang&display=swap">
 <link rel="stylesheet" href="../../assets/common.css">
 <style>
+  /* 3D 화면은 가로세로 비율을 맞추지 않고 꽉 채워요 */
+  .stage3d { position: absolute; inset: 0 max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); overflow: hidden; background: #05050c; border-radius: 6px; user-select: none; -webkit-user-select: none; }
+  .stage3d canvas#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   .eyebrow { margin: 0; color: var(--text-dim); font-size: 0.85em; letter-spacing: 0.08em; }
-  .story { margin: 0; max-width: 30em; line-height: 1.55; text-wrap: pretty; }
+  .story { margin: 0; max-width: 32em; line-height: 1.55; text-wrap: pretty; }
   .team-form { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.5em; }
   .team-form label { color: var(--candle); }
-  .team-form input, .teacher input, .teacher select {
+  .team-form input, .teacher input, .teacher select, .answer-row input {
     min-height: 2.4em; padding: 0.3em 0.7em; border: 0; border-radius: 0.6em;
     background: var(--bg); box-shadow: inset 0 0 0 0.12em var(--line); color: var(--text); font-size: 1em;
   }
   .team-form input { width: 7em; text-align: center; }
-  .team-form input:focus-visible, .teacher input:focus-visible, .teacher select:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+  input:focus-visible, select:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
 
   /* 진행 표시 */
-  .hud { position: absolute; top: 0.5em; right: 0.6em; display: flex; gap: 0.4em; align-items: center; z-index: 3; }
+  .hud { position: absolute; top: 0.5em; right: 0.6em; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.35em; align-items: center; z-index: 4; max-width: 60%; }
   .hud-chip { padding: 0.25em 0.7em; border-radius: 999px; background: rgba(12, 8, 22, 0.78); font-size: 0.9em; white-space: nowrap; }
   .hud-time { color: var(--candle); font-variant-numeric: tabular-nums; }
   .hud-btn {
-    padding: 0.25em 0.8em; border: 0; border-radius: 999px; background: var(--pumpkin); color: var(--pumpkin-ink);
+    padding: 0.3em 0.8em; border: 0; border-radius: 999px; background: var(--pumpkin); color: var(--pumpkin-ink);
     font: inherit; font-size: 0.9em; cursor: pointer; touch-action: manipulation;
   }
+  .hud-btn.quiet { background: rgba(246, 241, 255, 0.9); color: #2a1d3f; }
+  .hud-btn:disabled { opacity: 0.45; cursor: default; }
   .hud-btn:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
 
-  /* 방 */
-  .room { position: absolute; inset: 0; pointer-events: none; }
-  .room > * { pointer-events: auto; }
   .room-card {
-    position: absolute; left: 0.6em; top: 0.5em; max-width: 19em; padding: 0.5em 0.8em;
-    border-radius: 0.8em; background: rgba(12, 8, 22, 0.82);
+    position: absolute; left: 0.6em; top: 0.5em; max-width: 17em; padding: 0.45em 0.8em; z-index: 3;
+    border-radius: 0.8em; background: rgba(12, 8, 22, 0.78); pointer-events: none;
   }
-  .room-where { margin: 0; color: var(--mint); font-size: 0.8em; }
-  .room-title { margin: 0.1em 0; font-family: var(--font-display); font-weight: 400; font-size: 1.7em; line-height: 1.1; color: var(--pumpkin); }
-  .room-goal { margin: 0; font-size: 0.85em; line-height: 1.4; }
-  .room-foot { position: absolute; left: 0.6em; bottom: 0.6em; display: flex; align-items: flex-end; gap: 0.6em; max-width: 34em; pointer-events: none; }
-  .room-foot > * { pointer-events: auto; }
-  .room-foot > .bubble { pointer-events: none; }
-  .hint-btn { font-size: 0.85em; min-height: 2.3em; background: rgba(12, 8, 22, 0.85); }
+  .room-where { margin: 0; color: var(--mint); font-size: 0.78em; }
+  .room-title { margin: 0.05em 0; font-family: var(--font-display); font-weight: 400; font-size: 1.5em; line-height: 1.1; color: var(--pumpkin); }
+  .room-goal { margin: 0; font-size: 0.8em; line-height: 1.4; }
+  .minimap { position: absolute; left: 0.6em; top: 0.5em; width: 20em; height: 2.6em; z-index: 3; pointer-events: none; }
+
+  .crosshair { position: absolute; left: 50%; top: 50%; width: 0.5em; height: 0.5em; margin: -0.25em 0 0 -0.25em; border-radius: 50%; background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 0 0.12em rgba(0, 0, 0, 0.5); pointer-events: none; z-index: 2; }
+  .crosshair.hot { background: var(--candle); width: 0.8em; height: 0.8em; margin: -0.4em 0 0 -0.4em; }
+  .prompt { position: absolute; left: 50%; top: calc(50% + 1.2em); transform: translateX(-50%); margin: 0; padding: 0.2em 0.7em; border-radius: 999px; background: rgba(12, 8, 22, 0.8); color: var(--candle); font-size: 0.9em; white-space: nowrap; pointer-events: none; z-index: 2; }
   .bubble {
-    margin: 0; padding: 0.5em 0.8em; border-radius: 0.9em 0.9em 0.9em 0.2em;
-    background: #f6f1ff; color: #2a1d3f; font-size: 0.9em; line-height: 1.4; max-width: 24em;
+    position: absolute; left: 50%; bottom: 2.2em; transform: translateX(-50%); z-index: 3; margin: 0;
+    padding: 0.5em 0.9em; border-radius: 0.9em; background: #f6f1ff; color: #2a1d3f; font-size: 0.92em; line-height: 1.45;
+    width: max-content; max-width: min(30em, 70%); text-align: center; pointer-events: none;
   }
-  .puzzle { position: absolute; inset: 0; pointer-events: none; }
-  .puzzle > * { pointer-events: auto; }
-  .chip-big {
-    position: absolute; right: 0.7em; bottom: 0.7em;
-    padding: 0.35em 1em; border-radius: 999px; background: rgba(12, 8, 22, 0.85); font-size: 1.1em; white-space: nowrap;
+  .guard-talk { position: absolute; left: 50%; top: 3.4em; transform: translateX(-50%); z-index: 3; margin: 0; padding: 0.35em 0.9em; border-radius: 0.8em; background: rgba(12, 8, 22, 0.82); font-size: 0.92em; pointer-events: none; width: max-content; max-width: 70%; text-align: center; }
+  .keys-hint { position: absolute; left: 50%; bottom: 0.3em; transform: translateX(-50%); margin: 0; color: rgba(246, 241, 255, 0.55); font-size: 0.72em; white-space: nowrap; pointer-events: none; z-index: 2; }
+
+  /* 터치 조작 */
+  .joy { position: absolute; left: 0; bottom: 0; width: 42%; height: 62%; z-index: 2; touch-action: none; }
+  .joy-base { position: absolute; width: 7em; height: 7em; margin: -3.5em 0 0 -3.5em; border-radius: 50%; background: rgba(246, 241, 255, 0.12); box-shadow: inset 0 0 0 0.15em rgba(246, 241, 255, 0.4); pointer-events: none; }
+  .joy-knob { position: absolute; left: 50%; top: 50%; width: 3em; height: 3em; margin: -1.5em 0 0 -1.5em; border-radius: 50%; background: rgba(246, 241, 255, 0.75); }
+  .joy-base.run { box-shadow: inset 0 0 0 0.2em var(--danger); }
+  .joy-tip { position: absolute; left: 1em; bottom: 1em; margin: 0; color: rgba(246, 241, 255, 0.6); font-size: 0.8em; pointer-events: none; }
+  .act-btn {
+    position: absolute; right: 1em; bottom: 1em; z-index: 3; min-width: 6em; height: 4.4em; padding: 0 1em; border: 0; border-radius: 1.2em;
+    background: var(--pumpkin); color: var(--pumpkin-ink); font: inherit; font-size: 1.1em; cursor: pointer; touch-action: manipulation;
+    box-shadow: 0 0.25em 0 rgba(0, 0, 0, 0.35);
   }
-  .card {
-    position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%);
-    display: flex; flex-direction: column; align-items: center; gap: 0.6em;
-    width: min(30em, 92%); padding: 0.9em 1.2em; border-radius: 1em;
-    background: rgba(18, 13, 28, 0.92); box-shadow: 0 0 0 0.12em var(--line), 0 1em 2em rgba(0, 0, 0, 0.45);
-    text-align: center;
+  .act-btn.far { opacity: 0.45; }
+  .act-btn[aria-pressed="true"] { background: var(--mint); color: #0b2a24; }
+  .act-btn:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+
+  /* 숨었을 때 (청소함 틈) / 쫓길 때 */
+  .peek { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background:
+      repeating-linear-gradient(180deg, rgba(4, 4, 8, 0.96) 0 1.6em, rgba(4, 4, 8, 0) 1.6em 2.3em),
+      radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.85) 80%);
   }
-  .card .step { margin: 0; color: var(--text-dim); font-size: 0.85em; }
+  .peek.door { background: linear-gradient(90deg, rgba(4, 4, 8, 0.97) 0 30%, rgba(4, 4, 8, 0) 38% 100%), radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.8) 85%); }
+  .peek-label { position: absolute; left: 50%; top: 3.4em; transform: translateX(-50%); margin: 0; padding: 0.3em 0.9em; border-radius: 999px; background: rgba(159, 240, 216, 0.9); color: #0b2a24; font-size: 0.9em; z-index: 3; pointer-events: none; white-space: nowrap; }
+  .danger { position: absolute; inset: 0; z-index: 1; pointer-events: none; box-shadow: inset 0 0 6em 1.5em rgba(255, 40, 40, 0.55); animation: pulse 0.6s infinite alternate; }
+  @keyframes pulse { from { opacity: 0.6; } to { opacity: 1; } }
+
+  /* 수수께끼 판 */
+  .panel-wrap { position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; background: rgba(5, 3, 12, 0.55); padding: 0.6em; }
+  .puzzle {
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.55em;
+    width: min(36em, 96%); max-height: 96%; overflow: auto; padding: 1em 1.2em; border-radius: 1em;
+    background: rgba(18, 13, 28, 0.97); box-shadow: 0 0 0 0.12em var(--line), 0 1em 2em rgba(0, 0, 0, 0.45); text-align: center;
+  }
+  .puzzle h3 { margin: 0 3em; font-family: var(--font-display); font-weight: 400; font-size: 1.7em; color: var(--pumpkin); line-height: 1.1; }
+  .puzzle .x { position: absolute; right: 0.5em; top: 0.5em; border: 0; border-radius: 999px; background: var(--bg-card); color: var(--text); font: inherit; padding: 0.3em 0.8em; cursor: pointer; }
+  .puzzle .step { margin: 0; color: var(--text-dim); font-size: 0.85em; }
+  .puzzle .q { margin: 0; font-size: 1.15em; line-height: 1.45; }
   .shake { animation: shake 0.35s; }
-  @keyframes shake { 20%, 60% { transform: translate(calc(-50% - 0.4em), -50%); } 40%, 80% { transform: translate(calc(-50% + 0.4em), -50%); } }
-
-  /* 과학실 물약 병 */
-  .bottle-btn {
-    position: absolute; width: 4.4em; height: 7.4em; border: 0; border-radius: 1em; background: transparent; cursor: pointer;
-    touch-action: manipulation;
-  }
-  .bottle-btn:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
-  .pour-btn { position: absolute; left: 21em; top: 24.2em; }
-
-  /* 도서관 초성 */
-  .cho { margin: 0; font-family: var(--font-display); font-size: 3em; letter-spacing: 0.25em; color: var(--candle); line-height: 1; }
-  .slots { display: flex; gap: 0.4em; }
-  .slot {
-    width: 2.6em; height: 2.6em; display: grid; place-items: center; border-radius: 0.5em;
-    background: var(--bg); box-shadow: inset 0 0 0 0.12em var(--line); font-size: 1.3em; border: 0; color: var(--text); cursor: pointer;
-  }
-  .tiles { display: grid; grid-template-columns: repeat(4, 3.3em); gap: 0.4em; }
-  .tile {
-    height: 2.6em; border: 0; border-radius: 0.5em; background: #e9e1ff; color: #2a1d3f; font: inherit; font-size: 1.3em;
-    cursor: pointer; box-shadow: 0 0.18em 0 #a99bd0; touch-action: manipulation;
-  }
-  .tile:disabled { opacity: 0.25; cursor: default; }
-  .tile:focus-visible, .slot:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
-  .picture { font-size: 2em; line-height: 1; }
-
-  /* 방송실 버튼 */
-  .pads { display: grid; grid-template-columns: repeat(4, 5.2em); gap: 0.6em; }
-  .pad {
-    height: 5.2em; border: 0; border-radius: 1em; font-size: 1em; cursor: pointer; touch-action: manipulation;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1em;
-    color: #1a1226; box-shadow: 0 0.3em 0 rgba(0, 0, 0, 0.35); transition: transform 0.06s, filter 0.06s;
-  }
-  .pad span { font-size: 2em; line-height: 1; }
-  .pad.lit { filter: brightness(1.45) saturate(1.2); transform: scale(1.08); box-shadow: 0 0 1.4em rgba(255, 255, 255, 0.8); }
-  .pad:disabled { cursor: default; }
-  .pad:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
-
-  /* 퀴즈 */
-  .options { display: grid; gap: 0.5em; width: 100%; }
-  .option {
-    min-height: 2.6em; padding: 0.4em 0.8em; border: 0; border-radius: 0.7em; background: var(--bg-card); color: var(--text);
-    font: inherit; font-size: 1.05em; cursor: pointer; box-shadow: inset 0 0 0 0.12em var(--line); touch-action: manipulation;
-  }
-  .option:hover { background: var(--line); }
-  .option.out { opacity: 0.3; text-decoration: line-through; }
-  .option:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
-  .q { margin: 0; font-size: 1.2em; line-height: 1.4; }
-  .answer-row { display: flex; gap: 0.5em; }
-  .answer-row input {
-    width: 12em; min-height: 2.5em; padding: 0.3em 0.7em; border: 0; border-radius: 0.6em;
-    background: var(--bg); box-shadow: inset 0 0 0 0.12em var(--line); color: var(--text); font-size: 1em;
-  }
-
-  /* 보건실 그림 식 */
-  .eqs { display: grid; gap: 0.3em; font-size: 1.5em; font-variant-numeric: tabular-nums; }
-  .eqs p { margin: 0; }
-  .eqs .ask { color: var(--candle); }
-  .numpad { display: grid; grid-template-columns: repeat(5, 2.7em); gap: 0.35em; }
-  .num {
+  @keyframes shake { 20%, 60% { transform: translateX(-0.4em); } 40%, 80% { transform: translateX(0.4em); } }
+  .formula { font-size: 2em; letter-spacing: 0.08em; margin: 0; }
+  .numpad { display: grid; grid-template-columns: repeat(5, 2.9em); gap: 0.35em; }
+  .num, .sym {
     height: 2.5em; border: 0; border-radius: 0.5em; background: var(--bg-card); color: var(--text); font: inherit; font-size: 1.1em;
     cursor: pointer; box-shadow: inset 0 0 0 0.12em var(--line); touch-action: manipulation;
   }
-  .num:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+  .num:focus-visible, .sym:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+  .display { min-width: 5em; padding: 0.15em 0.6em; border-radius: 0.5em; background: #f4e3b0; color: #3a2600; font-size: 2em; font-variant-numeric: tabular-nums; letter-spacing: 0.15em; }
+  .prow { display: flex; flex-wrap: wrap; gap: 0.5em; justify-content: center; align-items: center; }
 
-  /* 현관 자물쇠 */
-  .lock { display: flex; gap: 0.45em; }
+  /* 물약 */
+  .recipe { margin: 0; font-size: 1.2em; }
+  .recipe b { font-weight: 400; color: var(--candle); }
+  .beakers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6em; width: 100%; }
+  .beaker { display: grid; gap: 0.3em; justify-items: center; padding: 0.5em; border-radius: 0.8em; background: var(--bg-card); }
+  .beaker .name { font-size: 1.05em; }
+  .beaker .ml { font-size: 1.6em; font-variant-numeric: tabular-nums; }
+  .beaker .liquid { width: 3em; height: 4em; border-radius: 0 0 0.8em 0.8em; box-shadow: inset 0 0 0 0.15em rgba(255, 255, 255, 0.5); background: linear-gradient(to top, var(--c) var(--f), transparent var(--f)); }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25em; }
+  .steps button { padding: 0.35em 0.2em; border: 0; border-radius: 0.4em; background: var(--line); color: var(--text); font: inherit; font-size: 0.85em; cursor: pointer; touch-action: manipulation; }
+
+  /* 속담 */
+  .proverb { margin: 0; font-size: 1.3em; line-height: 1.7; }
+  .proverb .blank { display: inline-flex; gap: 0.2em; vertical-align: middle; }
+  .slot { display: inline-grid; place-items: center; width: 1.9em; height: 1.9em; border-radius: 0.4em; background: var(--bg); box-shadow: inset 0 0 0 0.12em var(--line); color: var(--candle); font-size: 1em; }
+  .slot.empty { color: var(--text-dim); }
+  .tiles { display: grid; grid-template-columns: repeat(5, 3em); gap: 0.4em; }
+  .tile { height: 2.6em; border: 0; border-radius: 0.5em; background: #e9e1ff; color: #2a1d3f; font: inherit; font-size: 1.25em; cursor: pointer; box-shadow: 0 0.18em 0 #a99bd0; touch-action: manipulation; }
+  .tile:disabled { opacity: 0.25; cursor: default; }
+
+  /* 모스 */
+  .lamp { width: 3.2em; height: 3.2em; border-radius: 50%; background: #3a1414; box-shadow: inset 0 0 0 0.2em #1a0808; }
+  .lamp.on { background: #ff3030; box-shadow: 0 0 1.6em #ff3030, inset 0 0 0 0.2em #ff8a8a; }
+  .memo { min-height: 1.8em; min-width: 12em; max-width: 100%; padding: 0.2em 0.6em; border-radius: 0.5em; background: var(--bg); box-shadow: inset 0 0 0 0.12em var(--line); font-size: 1.4em; letter-spacing: 0.15em; word-break: break-all; }
+
+  /* 자리 */
+  .seats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4em; width: 100%; }
+  .seat { display: grid; gap: 0.25em; justify-items: center; padding: 0.45em 0.2em; border-radius: 0.7em; background: var(--bg-card); }
+  .seat .no { color: var(--text-dim); font-size: 0.8em; }
+  .seat button { width: 100%; min-height: 3.2em; border: 0; border-radius: 0.5em; background: #f7f3e6; color: #1b2233; font: inherit; font-size: 0.85em; line-height: 1.2; cursor: pointer; touch-action: manipulation; }
+  .seat button.empty { background: var(--line); color: var(--text-dim); }
+  .clues { margin: 0; padding-left: 1.2em; text-align: left; font-size: 0.95em; line-height: 1.55; }
+
+  /* 쪽지 */
+  .notes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4em; width: 100%; }
+  .notes p { margin: 0; padding: 0.4em 0.5em; border-radius: 0.5em; background: #fffef4; color: #1b2233; font-size: 1.05em; }
+  .notes p.missing { background: var(--bg-card); color: var(--text-dim); }
+
+  /* 자물쇠 */
+  .lock { display: flex; gap: 0.4em; }
   .dial { display: flex; flex-direction: column; align-items: center; gap: 0.2em; }
   .dial .icon { font-size: 1.5em; line-height: 1; }
-  .dial .digit {
-    width: 1.9em; height: 2.2em; display: grid; place-items: center; border-radius: 0.4em;
-    background: #f4e3b0; color: #3a2600; font-size: 1.6em; font-variant-numeric: tabular-nums;
-  }
-  .dial button {
-    width: 2.6em; height: 1.7em; border: 0; border-radius: 0.4em; background: var(--bg-card); color: var(--text);
-    font-size: 0.9em; cursor: pointer; touch-action: manipulation;
-  }
-  .dial button:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
+  .dial .digit { width: 1.9em; height: 2.2em; display: grid; place-items: center; border-radius: 0.4em; background: #f4e3b0; color: #3a2600; font-size: 1.6em; font-variant-numeric: tabular-nums; }
+  .dial button { width: 2.6em; height: 1.8em; border: 0; border-radius: 0.4em; background: var(--bg-card); color: var(--text); font-size: 0.9em; cursor: pointer; touch-action: manipulation; }
   .meter { width: 100%; height: 1.2em; border-radius: 999px; background: var(--bg); box-shadow: inset 0 0 0 0.12em var(--line); overflow: hidden; }
   .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--pumpkin), var(--candle)); }
-
-  /* 복도 조작 */
-  .hall-ui { position: absolute; inset: 0; pointer-events: none; }
-  .hall-ui > * { pointer-events: auto; }
-  .hall-bubble { position: absolute; left: 0.6em; top: 3em; pointer-events: none; }
-  .pad-row { position: absolute; left: 0.8em; bottom: 0.8em; display: flex; gap: 0.6em; }
-  .move-btn, .hide-btn {
-    width: 4.6em; height: 4.6em; border: 0; border-radius: 1.2em; background: rgba(246, 241, 255, 0.88); color: #2a1d3f;
-    font: inherit; font-size: 1.05em; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
-    box-shadow: 0 0.25em 0 rgba(0, 0, 0, 0.35);
-  }
-  .move-btn.on, .hide-btn.on { background: var(--mint); }
-  .hide-btn { position: absolute; right: 0.8em; bottom: 0.8em; width: 6.2em; background: var(--pumpkin); color: var(--pumpkin-ink); font-size: 1.15em; }
-  .hide-btn[aria-pressed="true"] { background: var(--mint); color: #0b2a24; }
-  .hide-btn.far { opacity: 0.55; }
-  .keys-hint { position: absolute; left: 50%; bottom: 0.7em; transform: translateX(-50%); margin: 0; color: var(--text-dim); font-size: 0.8em; white-space: nowrap; }
+  .poster-big { width: min(22em, 90%); border-radius: 0.5em; }
+  .answer-row { display: flex; gap: 0.5em; }
+  .answer-row input { width: 12em; }
 
   /* 지도·보상·수첩 */
+  .map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
   .map-caption { position: absolute; left: 50%; bottom: 0.8em; transform: translateX(-50%); width: min(40em, 94%); align-items: center; }
-  .digit-card {
-    display: grid; place-items: center; width: 3.2em; height: 4em; border-radius: 0.5em;
-    background: #f4e3b0; color: #3a2600; font-family: var(--font-display); font-size: 2.6em; box-shadow: 0 0.2em 0 #b38d3a;
-  }
+  .digit-card { display: grid; place-items: center; width: 3.2em; height: 4em; border-radius: 0.5em; background: #f4e3b0; color: #3a2600; font-family: var(--font-display); font-size: 2.6em; box-shadow: 0 0.2em 0 #b38d3a; }
   .note-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5em; width: 100%; margin: 0; padding: 0; list-style: none; }
   .note-list li { display: flex; align-items: center; gap: 0.5em; padding: 0.4em 0.6em; border-radius: 0.6em; background: var(--bg-card); }
   .note-list b { margin-left: auto; font-weight: 400; font-size: 1.5em; color: var(--candle); }
-
-  /* 선생님 설정 */
   .teacher { display: grid; gap: 0.45em; width: 100%; text-align: left; }
   .teacher .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5em; }
   .teacher label { display: grid; gap: 0.2em; color: var(--text-dim); font-size: 0.85em; }
@@ -178,13 +168,15 @@
   .qa { display: grid; grid-template-columns: 2fr 1fr; gap: 0.4em; }
   .link-box { width: 100%; padding: 0.4em 0.6em; border-radius: 0.5em; background: var(--bg); font-size: 0.8em; overflow-wrap: anywhere; user-select: all; }
   .qr { width: 9em; height: 9em; image-rendering: pixelated; border-radius: 0.4em; }
+  .stage3d .overlay { z-index: 7; }
+  .loading { position: absolute; inset: 0; z-index: 9; display: grid; place-items: center; background: #05050c; color: var(--text-dim); }
 </style>
 </head>
 <body>
 <div class="game-page">
   <header class="game-bar">
     <a class="back" href="../../index.html">← 게임 목록</a>
-    <h1>동암초 탈출<small>함께 하기 · 모둠 방탈출</small></h1>
+    <h1>동암초 탈출<small>함께 하기 · 3D 모둠 방탈출</small></h1>
     <div class="tools">
       <button class="icon-btn" id="mapBtn" type="button" aria-label="학교 지도" title="학교 지도" hidden>🗺️</button>
       <button class="icon-btn" id="muteBtn" type="button">🔊</button>
@@ -193,42 +185,50 @@
   </header>
 
   <main class="stage-area" id="stageArea">
-    <div class="stage" id="stage">
-      <canvas id="scene" aria-label="동암초 탈출 게임 화면"></canvas>
+    <div class="stage3d" id="stage">
+      <canvas id="scene" aria-label="동암초 탈출 3D 화면"></canvas>
+      <div class="peek" id="peek" hidden></div>
+      <div class="danger" id="danger" hidden></div>
+      <div class="crosshair" id="crosshair" hidden></div>
+      <p class="prompt" id="prompt" hidden></p>
+
+      <div class="room-card" id="roomCard" hidden>
+        <p class="room-where" id="roomWhere"></p>
+        <h2 class="room-title" id="roomTitle"></h2>
+        <p class="room-goal" id="roomGoal"></p>
+      </div>
+      <canvas class="minimap" id="minimap" width="640" height="84" hidden></canvas>
 
       <div class="hud" id="hud" hidden>
         <span class="hud-chip" id="hudTeam"></span>
         <span class="hud-chip" id="hudPlace"></span>
         <span class="hud-chip hud-time" id="hudTime">00:00</span>
-        <button class="hud-btn" id="noteBtn" type="button">📒 숫자 수첩</button>
+        <button class="hud-btn quiet" id="hintBtn" type="button">💡 힌트</button>
+        <button class="hud-btn" id="noteBtn" type="button">📒 수첩</button>
       </div>
 
-      <section class="room" id="roomScreen" hidden>
-        <div class="room-card">
-          <p class="room-where" id="roomWhere"></p>
-          <h2 class="room-title" id="roomTitle"></h2>
-          <p class="room-goal" id="roomGoal"></p>
-        </div>
-        <div class="puzzle" id="puzzle"></div>
-        <div class="room-foot">
-          <button class="btn btn-quiet hint-btn" id="hintBtn" type="button">💡 힌트 (+30초)</button>
-          <p class="bubble" id="bubble" hidden></p>
-        </div>
-      </section>
+      <p class="guard-talk" id="guardTalk" hidden></p>
+      <p class="peek-label" id="peekLabel" hidden></p>
+      <p class="bubble" id="bubble" hidden></p>
+      <p class="keys-hint" id="keysHint" hidden>W A S D · 방향키 움직이기 · Shift 뛰기 · 마우스 끌어서 둘러보기 · 클릭 / E 살펴보기</p>
 
-      <section class="hall-ui" id="hallScreen" hidden>
-        <p class="bubble hall-bubble" id="hallBubble"></p>
-        <div class="pad-row">
-          <button class="move-btn" id="leftBtn" type="button" aria-label="왼쪽으로 가기">◀</button>
-          <button class="move-btn" id="rightBtn" type="button" aria-label="오른쪽으로 가기">▶</button>
-        </div>
-        <p class="keys-hint">←→ 움직이기 · ↓ 또는 Space 숨기</p>
-        <button class="hide-btn" id="hideBtn" type="button" aria-pressed="false">숨기</button>
-      </section>
+      <div class="joy" id="joy" hidden>
+        <p class="joy-tip" id="joyTip">여기를 누르고 끌면 걸어요 · 끝까지 밀면 뛰어요</p>
+        <div class="joy-base" id="joyBase" hidden><div class="joy-knob" id="joyKnob"></div></div>
+      </div>
+      <button class="act-btn" id="actBtn" type="button" aria-pressed="false" hidden>숨기</button>
 
-      <section class="overlay" id="titleScreen">
+      <div class="panel-wrap" id="panelWrap" hidden>
+        <div class="puzzle" id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle">
+          <button class="x" id="panelClose" type="button">✕ 닫기</button>
+          <h3 id="panelTitle"></h3>
+          <div id="panelBody" style="display: contents"></div>
+        </div>
+      </div>
+
+      <section class="overlay" id="titleScreen" hidden>
         <div class="panel">
-          <p class="eyebrow">함께 하기 · 모둠 방탈출</p>
+          <p class="eyebrow">함께 하기 · 3D 모둠 방탈출</p>
           <h2 class="big-title" id="titleName">동암초 탈출</h2>
           <p class="story" id="titleStory"></p>
           <form class="team-form" id="teamForm" autocomplete="off">
@@ -241,11 +241,12 @@
             <button class="btn btn-quiet" id="boardBtn" type="button">명예의 전당</button>
             <button class="btn btn-quiet" id="teacherBtn" type="button">선생님 설정</button>
           </div>
-          <p class="hint">방 6개와 복도 5곳 · 힌트 한 번에 +30초 · 경비원에게 잡히면 +30초</p>
+          <p class="hint">방 6개 · 복도 5곳 · 힌트 한 번에 +30초 · 경비원에게 잡히면 +30초 · 종이와 연필이 있으면 좋아요</p>
         </div>
       </section>
 
       <section class="overlay clear" id="mapScreen" hidden>
+        <canvas class="map-canvas" id="mapCanvas"></canvas>
         <div class="panel map-caption">
           <p class="sub-title" id="mapTitle"></p>
           <p class="hint" id="mapText"></p>
@@ -259,7 +260,7 @@
           <p class="sub-title">유령 ‘부’가 숫자 카드를 떨어뜨렸어요</p>
           <div class="digit-card" id="rewardDigit">7</div>
           <p class="hint" id="rewardNote"></p>
-          <button class="btn" id="rewardNext" type="button">다음으로</button>
+          <button class="btn" id="rewardNext" type="button">좋아요!</button>
         </div>
       </section>
 
@@ -315,7 +316,7 @@
               <label>학교 이름 <input id="tSchool" maxlength="20"></label>
               <label>출발 교실 (우리 반) <select id="tClass"></select></label>
             </div>
-            <p class="hint">교무실 퀴즈를 직접 낼 수 있어요. 비워 두면 학교 지도 퀴즈가 나와요. 답이 여러 개면 쉼표로 나눠요.</p>
+            <p class="hint">교무실 컴퓨터에 나올 문제를 직접 낼 수 있어요 (비워 두면 안 나와요). 답이 여러 개면 쉼표로 나눠요.</p>
             <div class="qa"><input id="tQ1" maxlength="80" placeholder="문제 1 (예: 우리 학교 개교기념일은 몇 월?)"><input id="tA1" maxlength="40" placeholder="답 (예: 5월, 오월)"></div>
             <div class="qa"><input id="tQ2" maxlength="80" placeholder="문제 2"><input id="tA2" maxlength="40" placeholder="답"></div>
             <div class="qa"><input id="tQ3" maxlength="80" placeholder="문제 3"><input id="tA3" maxlength="40" placeholder="답"></div>
@@ -332,15 +333,28 @@
           </div>
         </div>
       </section>
+
+      <section class="overlay" id="noGlScreen" hidden>
+        <div class="panel">
+          <h2 class="big-title">3D가 안 켜져요</h2>
+          <p class="story">이 기기나 브라우저에서는 3D 그림(WebGL)을 쓸 수 없어요. 크롬·웨일·엣지·사파리 최신 버전으로 열거나, 다른 기기에서 해 주세요.</p>
+          <a class="btn" href="../../index.html">게임 목록으로</a>
+        </div>
+      </section>
+
+      <div class="loading" id="loading">학교 문을 여는 중…</div>
     </div>
     <p class="rotate-hint">휴대폰·태블릿은 가로로 돌리면 더 크게 보여요</p>
   </main>
 </div>
 
 <script src="../../assets/common.js"></script>
-<script src="../../assets/art.js"></script>
+<script src="../../assets/vendor/three.min.js"></script>
 <script src="core.js"></script>
-<script src="scenes.js"></script>
+<script src="map.js"></script>
+<script src="tex.js"></script>
+<script src="world.js"></script>
+<script src="rooms.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

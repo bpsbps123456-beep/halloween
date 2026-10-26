@@ -177,6 +177,17 @@
     );
 
     const N = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
+    // play(name, { vol, pan }) 로 효과음 하나의 크기와 좌우 방향을 바꿔요
+    let sfxScale = 1;
+    let sfxPan = 0;
+    function output(c, o) {
+      const bus = o.bus || sfxBus;
+      if (o.bus || !sfxPan || !c.createStereoPanner) return bus;
+      const p = c.createStereoPanner();
+      p.pan.value = sfxPan;
+      p.connect(bus);
+      return p;
+    }
 
     function tone(o) {
       if (muted) return;
@@ -198,12 +209,16 @@
         lfo.start(t0);
         lfo.stop(t0 + o.dur + 0.05);
       }
-      const vol = o.vol == null ? 0.2 : o.vol;
+      const vol = Math.max(0.0002, (o.vol == null ? 0.2 : o.vol) * (o.bus ? 1 : sfxScale));
       g.gain.setValueAtTime(0.0001, t0);
       g.gain.exponentialRampToValueAtTime(vol, t0 + (o.attack || 0.004));
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
+      if (o.hold) {
+        // 삐- 처럼 끝까지 같은 크기로
+        g.gain.setValueAtTime(vol, t0 + Math.max(o.attack || 0.004, o.dur - 0.03));
+        g.gain.linearRampToValueAtTime(0.0001, t0 + o.dur);
+      } else g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
       osc.connect(g);
-      const bus = o.bus || sfxBus;
+      const bus = output(c, o);
       if (o.lowpass) {
         const f = c.createBiquadFilter();
         f.type = 'lowpass';
@@ -235,13 +250,13 @@
       if (o.to) f.frequency.exponentialRampToValueAtTime(o.to, t0 + o.dur);
       f.Q.value = o.q || 1;
       const g = c.createGain();
-      const vol = o.vol == null ? 0.2 : o.vol;
+      const vol = Math.max(0.0002, (o.vol == null ? 0.2 : o.vol) * (o.bus ? 1 : sfxScale));
       g.gain.setValueAtTime(0.0001, t0);
       g.gain.exponentialRampToValueAtTime(vol, t0 + (o.attack || 0.004));
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
       src.connect(f);
       f.connect(g);
-      g.connect(o.bus || sfxBus);
+      g.connect(output(c, o));
       src.start(t0, Math.random() * 0.5);
       src.stop(t0 + o.dur + 0.05);
     }
@@ -355,13 +370,23 @@
         tone({ type: type || 'triangle', f: N(midi), dur: dur || 0.4, vol: 0.18 });
         tone({ type: 'sine', f: N(midi + 12), dur: (dur || 0.4) * 0.6, vol: 0.04 });
       },
-      play(name) {
+      play(name, opts) {
         if (muted || !SFX[name]) return;
+        sfxScale = opts && opts.vol != null ? opts.vol : 1;
+        sfxPan = (opts && opts.pan) || 0;
         try {
           SFX[name]();
         } catch (e) {
           /* 소리가 안 나도 게임은 계속됩니다 */
+        } finally {
+          sfxScale = 1;
+          sfxPan = 0;
         }
+      },
+      /** 같은 크기로 이어지는 삐- 소리 (모스 부호) */
+      beep(dur, f) {
+        if (muted) return;
+        tone({ type: 'sine', f: f || 800, dur, vol: 0.22, attack: 0.008, hold: true });
       },
       music(newSong) {
         stopTimer();
