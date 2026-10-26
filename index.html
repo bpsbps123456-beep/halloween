@@ -12,6 +12,7 @@
 <style>
   /* 밤하늘 띠 그림 위에 큰 제목, 그 아래로 혼자 하기 / 함께 하기 두 칸 */
   :root {
+    --ghost-paper: #fffaf0;
     --page-max: 1080px;
     --gutter-l: max(16px, env(safe-area-inset-left, 0px));
     --gutter-r: max(16px, env(safe-area-inset-right, 0px));
@@ -163,6 +164,45 @@
   .tips dt { color: var(--text); margin-bottom: 2px; }
   .tips dd { margin: 0; }
 
+  .share-btn { margin-top: 16px; }
+
+  /* 학생 기기로 열기: QR 코드는 흰 바탕이어야 잘 읽혀요 */
+  .share {
+    width: min(440px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    padding: 22px;
+    border: 0;
+    border-radius: 18px;
+    background: var(--bg-raised);
+    color: var(--text);
+    box-shadow: 0 0 0 2px var(--line), 0 20px 50px rgba(0, 0, 0, 0.5);
+    text-align: center;
+  }
+  .share::backdrop { background: rgba(8, 5, 14, 0.75); }
+  .share h2 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 400; font-size: 34px; color: var(--pumpkin); }
+  .share p { margin: 0; color: var(--text-dim); line-height: 1.5; }
+  .share .qr-box {
+    display: grid;
+    place-items: center;
+    width: min(300px, 70vw);
+    aspect-ratio: 1;
+    margin: 16px auto;
+    border-radius: 12px;
+    background: var(--ghost-paper);
+  }
+  .share canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+  .share .qr-note { padding: 16px; color: #3a2b52; font-size: 15px; }
+  .share .url {
+    display: block;
+    margin: 0 0 14px;
+    color: var(--text);
+    font-size: clamp(17px, 4.6vw, 22px);
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+  .share .row { justify-content: center; }
+
   @media (max-width: 520px) {
     .soon { grid-template-columns: 1fr; }
     .soon canvas { width: 72px; height: 72px; }
@@ -178,7 +218,19 @@
   <div class="intro">
     <h1>할로윈 게임 파티</h1>
     <p>추억의 플래시 게임 두 개를 할로윈 버전으로 바꿨어요. 혼자서 기록에 도전하고, 명예의 전당에 이름을 남겨 보세요.</p>
+    <button class="btn share-btn" id="shareBtn" type="button" hidden>📱 학생 기기로 열기</button>
   </div>
+
+  <dialog class="share" id="shareDialog" aria-labelledby="shareTitle">
+    <h2 id="shareTitle">학생 기기로 열기</h2>
+    <p>태블릿 카메라로 QR 코드를 찍거나, 아래 주소를 입력하세요.</p>
+    <div class="qr-box" id="qrBox"><canvas id="qr" width="330" height="330" aria-label="이 페이지 주소 QR 코드"></canvas></div>
+    <strong class="url" id="shareUrl"></strong>
+    <div class="row">
+      <button class="btn" id="copyBtn" type="button">주소 복사</button>
+      <button class="btn btn-quiet" id="shareClose" type="button">닫기</button>
+    </div>
+  </dialog>
 
   <section aria-labelledby="single-title">
     <div class="section-head">
@@ -195,7 +247,7 @@
           <p class="desc">호박군이 지붕 위를 달려 할로윈 파티장으로 가요. 점프하고, 공중에서 거미줄을 걸어 그네처럼 휘익 날아요.</p>
           <ul class="chips">
             <li>Space · 클릭 · 터치</li>
-            <li>6단계</li>
+            <li>6단계 · 난이도 2→10</li>
             <li>사탕 · 황금 별사탕</li>
           </ul>
           <p class="best" id="best-hobak"></p>
@@ -211,7 +263,7 @@
           <p class="desc">꼬마 유령이 대나무숲에서 사방으로 날아오는 화살을 피해요. 빛나는 화살촉 끝만 안 닿으면 돼요.</p>
           <ul class="chips">
             <li>방향키 · WASD · 끌기</li>
-            <li>쉬움 · 보통 · 어려움</li>
+            <li>레벨 1~6</li>
             <li>버틴 시간이 점수</li>
           </ul>
           <p class="best" id="best-jukrim"></p>
@@ -269,18 +321,77 @@
     hobEl.textContent = '아직 기록이 없어요. 첫 1등이 되어 보세요!';
     hobEl.classList.add('none');
   }
+  const juk = HG.board.best('jukrim');
   const jukEl = document.getElementById('best-jukrim');
-  const jparts = [['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']]
-    .map(([k, label]) => {
-      const b = HG.board.best('jukrim-' + k);
-      return b ? label + ' ' + b.name + ' ' + b.score.toFixed(2) + '초' : null;
-    })
-    .filter(Boolean);
-  if (jparts.length) jukEl.textContent = '이 컴퓨터 1등 · ' + jparts.join(' · ');
+  if (juk) jukEl.textContent = '이 컴퓨터 1등 · ' + juk.name + ' ' + juk.score.toFixed(2) + '초';
   else {
     jukEl.textContent = '아직 기록이 없어요. 첫 1등이 되어 보세요!';
     jukEl.classList.add('none');
   }
+
+  /* 학생 기기로 열기: 인터넷 주소로 열었을 때만 (파일로 열었거나 미리보기 창 안이면 숨김) */
+  const QR_LIB = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+  const shareBtn = document.getElementById('shareBtn');
+  const dialog = document.getElementById('shareDialog');
+  const pageUrl = location.origin + location.pathname.replace(/index\.html$/, '');
+  const local = ['localhost', '127.0.0.1', ''].indexOf(location.hostname) >= 0;
+  shareBtn.hidden = !/^https?:$/.test(location.protocol) || local || window.self !== window.top || !dialog.showModal;
+
+  function loadQrLib() {
+    if (window.qrcode) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const tag = document.createElement('script');
+      tag.src = QR_LIB;
+      tag.onload = () => (window.qrcode ? resolve() : reject(new Error('no qrcode')));
+      tag.onerror = reject;
+      document.head.appendChild(tag);
+    });
+  }
+
+  function drawQr(canvas, text) {
+    const qr = window.qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    const n = qr.getModuleCount();
+    const quiet = 3;
+    const cell = Math.floor(canvas.width / (n + quiet * 2));
+    const off = Math.floor((canvas.width - cell * n) / 2);
+    const c = canvas.getContext('2d');
+    c.fillStyle = '#fffaf0';
+    c.fillRect(0, 0, canvas.width, canvas.height);
+    c.fillStyle = '#120d1c';
+    for (let r = 0; r < n; r++) {
+      for (let k = 0; k < n; k++) if (qr.isDark(r, k)) c.fillRect(off + k * cell, off + r * cell, cell, cell);
+    }
+  }
+
+  shareBtn.addEventListener('click', () => {
+    document.getElementById('shareUrl').textContent = pageUrl;
+    dialog.showModal();
+    loadQrLib()
+      .then(() => drawQr(document.getElementById('qr'), pageUrl))
+      .catch(() => {
+        document.getElementById('qrBox').innerHTML = '<p class="qr-note">QR 코드를 불러오지 못했어요.<br>아래 주소를 칠판에 적어 주세요.</p>';
+      });
+  });
+  document.getElementById('shareClose').addEventListener('click', () => dialog.close());
+  document.getElementById('copyBtn').addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    const done = () => {
+      btn.textContent = '복사했어요';
+      setTimeout(() => (btn.textContent = '주소 복사'), 1500);
+    };
+    const fallback = () => {
+      const range = document.createRange();
+      range.selectNodeContents(document.getElementById('shareUrl'));
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      btn.textContent = '주소를 선택했어요. Ctrl+C로 복사하세요';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(pageUrl).then(done, fallback);
+    else fallback();
+  });
 
   /* 캔버스를 실제 크기에 맞추고 vw×vh 가상 좌표로 그립니다 */
   function fit(canvas, vw, vh, cover) {

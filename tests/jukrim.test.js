@@ -7,8 +7,8 @@ const J = require('../single/jukrim/core.js').JukrimCore;
 
 const { W, H } = J;
 
-function quietWorld(mode) {
-  const w = J.createWorld(mode || 'normal', 7);
+function quietWorld() {
+  const w = J.createWorld(7);
   w.next = Infinity; // 저절로 나오는 화살은 막아 둡니다
   return w;
 }
@@ -46,7 +46,7 @@ test('빠른 화살도 한 번에 유령을 뚫고 지나가지 못한다', () =
 test('모든 화살은 화면 밖에서 나타나 안쪽으로 날아온다', () => {
   for (const name of Object.keys(J.PATTERNS)) {
     for (let seed = 1; seed <= 30; seed++) {
-      const w = J.createWorld('normal', seed);
+      const w = J.createWorld(seed);
       w.ghost.x = 100 + ((seed * 97) % (W - 200));
       w.ghost.y = 80 + ((seed * 53) % (H - 160));
       J.spawn(w, name);
@@ -65,7 +65,7 @@ test('모든 화살은 화면 밖에서 나타나 안쪽으로 날아온다', ()
 
 test('화살 벽에는 유령 가까이에 지나갈 구멍이 있다', () => {
   for (let seed = 1; seed <= 60; seed++) {
-    const w = J.createWorld('normal', seed);
+    const w = J.createWorld(seed);
     J.spawn(w, 'wall');
     const g = w.ghost;
     const a0 = w.arrows[0];
@@ -84,8 +84,8 @@ test('화살 벽에는 유령 가까이에 지나갈 구멍이 있다', () => {
 });
 
 test('같은 씨앗이면 화살도 똑같이 나온다', () => {
-  const a = J.createWorld('hard', 42);
-  const b = J.createWorld('hard', 42);
+  const a = J.createWorld(42);
+  const b = J.createWorld(42);
   for (let i = 0; i < 120 * 20; i++) {
     J.step(a, { dx: 1 }, J.DT);
     J.step(b, { dx: 1 }, J.DT);
@@ -94,20 +94,20 @@ test('같은 씨앗이면 화살도 똑같이 나온다', () => {
   assert.strictEqual(a.alive, b.alive);
 });
 
-test('시간이 지나면 레벨이 오르고, 쉬움은 천천히 오른다', () => {
-  const n = quietWorld('normal');
-  const e = quietWorld('easy');
-  n.t = 21;
-  e.t = 21;
-  assert.strictEqual(J.levelOf(n), 3);
-  assert.ok(J.levelOf(e) < 3);
+test('레벨은 10, 20, 35, 50, 70초에 오른다', () => {
+  const w = quietWorld();
+  const at = (t) => {
+    w.t = t;
+    return J.levelOf(w);
+  };
+  assert.deepStrictEqual([0, 9.9, 10, 20, 35, 50, 70, 300].map(at), [1, 1, 2, 3, 4, 5, 6, 6]);
 });
 
-test('피하는 자동 플레이어로 보면 쉬움이 가장 오래, 어려움이 가장 짧게 버틴다', () => {
+test('피하는 자동 플레이어가 평균 20초 넘게 버틴다 (불가능하게 어렵지 않다)', () => {
   const DIRS = [[0, 0]];
   for (let i = 0; i < 8; i++) DIRS.push([Math.cos((i * Math.PI) / 4), Math.sin((i * Math.PI) / 4)]);
-  function survive(mode, seed) {
-    const w = J.createWorld(mode, seed);
+  function survive(seed) {
+    const w = J.createWorld(seed);
     let dir = [0, 0];
     let next = 0;
     while (w.alive && w.t < 90) {
@@ -139,15 +139,9 @@ test('피하는 자동 플레이어로 보면 쉬움이 가장 오래, 어려움
     }
     return w.t;
   }
-  const avg = (mode) => {
-    let sum = 0;
-    for (let s = 1; s <= 8; s++) sum += survive(mode, s);
-    return sum / 8;
-  };
-  const easy = avg('easy');
-  const hard = avg('hard');
-  assert.ok(easy > 20, `쉬움인데 평균 ${easy.toFixed(1)}초밖에 못 버텨요`);
-  assert.ok(easy > hard, `쉬움(${easy.toFixed(1)}초)이 어려움(${hard.toFixed(1)}초)보다 쉬워야 해요`);
+  let sum = 0;
+  for (let s = 1; s <= 8; s++) sum += survive(s);
+  assert.ok(sum / 8 > 20, `평균 ${(sum / 8).toFixed(1)}초밖에 못 버텨요`);
 });
 
 test('칭호는 버틴 시간에 따라 바뀐다', () => {

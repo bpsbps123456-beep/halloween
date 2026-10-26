@@ -102,8 +102,17 @@ test('자동 플레이어가 모든 단계를 한 번도 안 떨어지고 끝낸
   }
 });
 
-test('일반 점프는 누르는 순간이 0.2초 이상 넉넉하다', () => {
+test('난이도는 2 → 4 → 6 → 8 → 9 → 10 이고, 단계마다 빨라진다', () => {
+  assert.deepStrictEqual(
+    C.STAGES.map((st) => st.d),
+    [2, 4, 6, 8, 9, 10]
+  );
+  for (let si = 1; si < C.STAGES.length; si++) assert.ok(C.STAGES[si].speed > C.STAGES[si - 1].speed);
+});
+
+test('점프마다 누를 수 있는 때가 난이도별 최소 시간보다 길다', () => {
   for (let si = 0; si < C.STAGES.length; si++) {
+    const st = C.STAGES[si];
     const level = C.buildLevel(si);
     const base = Object.assign({}, level, { candies: [], goalX: Infinity });
     for (let i = 0; i < level.roofs.length - 1; i++) {
@@ -116,13 +125,14 @@ test('일반 점프는 누르는 순간이 0.2초 이상 넉넉하다', () => {
         if (C.simulate(base, i, startX, [P.pressAt(jx), P.tap()], i + 1, 5).ok) ok++;
       }
       const window = (ok * 2) / level.speed;
-      assert.ok(window >= 0.2, `${si + 1}단계 ${i}번째 점프 여유가 ${window.toFixed(2)}초뿐이에요`);
+      assert.ok(window >= st.jumpNeed - 0.02, `${si + 1}단계 ${i}번째 점프 여유가 ${window.toFixed(2)}초뿐이에요 (기준 ${st.jumpNeed.toFixed(2)}초)`);
     }
   }
 });
 
-test('거미줄 구간은 누르는 때와 떼는 때가 조금 달라도 대부분 건널 수 있다', () => {
+test('거미줄 구간은 누르는 때와 떼는 때가 조금 달라도 난이도별 기준만큼 건널 수 있다', () => {
   for (let si = 0; si < C.STAGES.length; si++) {
+    const st = C.STAGES[si];
     const level = C.buildLevel(si);
     const base = Object.assign({}, level, { candies: [], goalX: Infinity });
     for (let i = 0; i < level.roofs.length - 1; i++) {
@@ -130,21 +140,113 @@ test('거미줄 구간은 누르는 때와 떼는 때가 조금 달라도 대부
       const B = level.roofs[i + 1];
       const inGap = level.anchors.filter((a) => a.x > A.x1 && a.x < B.x0);
       if (!inGap.length) continue;
-      const startX = Math.max(A.x0 + 10, A.x1 - 200);
+      const startX = Math.max(A.x0 + 10, A.x1 - 160);
       let ok = 0;
       let total = 0;
       for (const web of [-400, -250, -100, 50, 200]) {
         for (const rel of [0, 0.2, 0.4, 0.6, 0.8]) {
           const acts = [P.pressAt(A.x1 - 12), P.tap(), P.webWhen(web), P.releaseAt(rel)];
-          if (inGap.length === 2) acts.push(P.webWhen(-60), P.releaseAt(0.45));
+          for (let k = 1; k < inGap.length; k++) acts.push(P.webWhen(-60), P.releaseAt(0.45));
           total++;
-          if (C.simulate(base, i, startX, acts, i + 1, 8).ok) ok++;
+          if (C.simulate(base, i, startX, acts, i + 1, 9).ok) ok++;
         }
       }
-      const need = inGap.length === 2 ? 0.5 : 0.7;
-      assert.ok(ok / total >= need, `${si + 1}단계 ${i}번째 거미줄 구간 성공률이 ${Math.round((100 * ok) / total)}%예요`);
+      // 레벨을 만들 때는 뒤 구간이 없는 상태로 재므로 조금 여유를 둡니다
+      assert.ok(ok / total >= st.swingNeed - 0.12, `${si + 1}단계 ${i}번째 거미줄 구간 성공률이 ${Math.round((100 * ok) / total)}%예요`);
     }
   }
+});
+
+/** 조금씩 틀리게 누르는 보통 아이를 흉내 내어, 목숨 3개로 단계를 끝내는지 봅니다. */
+function kidRun(si, seed) {
+  const level = C.buildLevel(si);
+  const world = C.createWorld(level);
+  const h = world.hero;
+  let a = seed | 0;
+  const rnd = () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const gauss = () => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
+  const fresh = () => ({ web: -60 + gauss() * 0.12 * C.G, rel: 0.45 + gauss() * 0.35 });
+  let held = false;
+  let heldFor = 0;
+  let plan = null;
+  let planFor = -1;
+  let falls = 0;
+  for (let t = 0; t < 300; t += C.DT) {
+    let pressed = false;
+    let released = false;
+    const press = () => {
+      if (!held) {
+        pressed = true;
+        held = true;
+        heldFor = 0;
+      }
+    };
+    const release = () => {
+      if (held) {
+        released = true;
+        held = false;
+      }
+    };
+    heldFor += C.DT;
+    if (h.state === 'ready') h.state = 'run';
+    if (h.state === 'run') {
+      if (held && heldFor > 0.09) release();
+      const i = level.roofs.findIndex((r) => h.x >= r.x0 - 12 && h.x <= r.x1 + 12);
+      const A = level.roofs[i];
+      const B = level.roofs[i + 1];
+      if (A && B && !held) {
+        if (planFor !== i) {
+          planFor = i;
+          let jx = A.x1 - 12;
+          if (!level.anchors.some((an) => an.x > A.x1 && an.x < B.x0)) {
+            const air = (C.JUMP_V + Math.sqrt(C.JUMP_V * C.JUMP_V + 2 * C.G * (B.top - A.top))) / C.G;
+            const D = level.speed * air;
+            jx = Math.min(A.x1, B.x0 + Math.min((D - (B.x0 - A.x1)) / 2, (B.x1 - B.x0) / 2) - D);
+          }
+          plan = Object.assign(fresh(), { jx: jx + gauss() * 0.09 * level.speed });
+        }
+        if (h.x >= plan.jx) press();
+      }
+    } else if (h.state === 'air') {
+      if (held && heldFor > 0.09) release();
+      else if (!held && plan && h.vy >= plan.web && C.findAnchor(level, h) >= 0) press();
+    } else if (h.state === 'swing' && C.ropeAngle(h) >= plan.rel) {
+      release();
+      plan = Object.assign(plan, fresh());
+    }
+    C.step(world, { pressed, released, held }, C.DT);
+    for (const e of world.events) {
+      if (e.type === 'goal') return true;
+      if (e.type === 'fall') {
+        falls++;
+        if (falls >= 3) return false;
+        C.respawn(world);
+        held = false;
+        planFor = -1;
+      }
+    }
+    world.events.length = 0;
+  }
+  return false;
+}
+
+test('보통 아이 기준으로 단계가 오를수록 끝내기 어려워진다', () => {
+  const N = 40;
+  const rate = C.STAGES.map((st, si) => {
+    let ok = 0;
+    for (let s = 1; s <= N; s++) if (kidRun(si, s * 7919 + si)) ok++;
+    return ok / N;
+  });
+  const shown = rate.map((r) => Math.round(r * 100) + '%').join(', ');
+  assert.ok(rate[0] >= 0.9, `1단계가 너무 어려워요 (${shown})`);
+  assert.ok(rate[3] <= 0.75, `4단계(난이도 8)가 너무 쉬워요 (${shown})`);
+  assert.ok(rate[5] >= 0.05 && rate[5] <= 0.5, `6단계(난이도 10) 난이도가 맞지 않아요 (${shown})`);
+  for (let i = 1; i < rate.length; i++) assert.ok(rate[i] <= rate[i - 1] + 0.15, `${i + 1}단계가 앞 단계보다 쉬워요 (${shown})`);
 });
 
 test('사탕 점수: 사탕 5점, 황금 별사탕은 단계마다 커진다', () => {

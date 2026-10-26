@@ -19,15 +19,10 @@
   const EDGE = 24; // 유령이 갈 수 있는 화면 가장자리 여백
   const OUT = 8; // 화살이 처음 나타나는 곳: 화면 바로 바깥
   const BASE_SPEED = 240;
+  const WARN = 0.45; // 화살이 들어오기 전에 화면 가장자리에 미리 알려 주는 시간 (초)
   const DT = 1 / 120;
 
-  const MODES = {
-    easy: { label: '쉬움', speed: 0.78, rate: 0.72, ramp: 0.75, warn: 0.75 },
-    normal: { label: '보통', speed: 1, rate: 1, ramp: 1, warn: 0.45 },
-    hard: { label: '어려움', speed: 1.15, rate: 1.22, ramp: 1.25, warn: 0 },
-  };
-
-  /* 레벨이 오르는 시각 (보통 기준, 초) */
+  /* 레벨이 오르는 시각 (초) */
   const LEVEL_AT = [0, 10, 20, 35, 50, 70];
 
   /* 무늬마다: cost = 다음 무늬까지 쉬는 정도, w = 레벨별 나올 비율 */
@@ -68,10 +63,8 @@
 
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
-  function createWorld(mode, seed) {
+  function createWorld(seed) {
     return {
-      mode,
-      cfg: MODES[mode] || MODES.normal,
       t: 0,
       ghost: { x: W / 2, y: H / 2 + 20, vx: 0, vy: 0 },
       arrows: [],
@@ -86,14 +79,13 @@
   }
 
   function levelOf(world) {
-    const t = world.t * world.cfg.ramp;
     let lv = 1;
-    for (let i = 0; i < LEVEL_AT.length; i++) if (t >= LEVEL_AT[i]) lv = i + 1;
+    for (let i = 0; i < LEVEL_AT.length; i++) if (world.t >= LEVEL_AT[i]) lv = i + 1;
     return lv;
   }
 
   function arrowSpeed(world) {
-    return BASE_SPEED * world.cfg.speed * (1 + 0.007 * Math.min(world.t, 120));
+    return BASE_SPEED * (1 + 0.007 * Math.min(world.t, 120));
   }
 
   /* ---------------- 화살 만들기 ---------------- */
@@ -136,7 +128,7 @@
     const r = world.rnd;
     const g = world.ghost;
     const v = arrowSpeed(world);
-    const warn = world.cfg.warn;
+    const warn = WARN;
     const side = Math.floor(r() * 4);
     const J = (s) => (r() - 0.5) * 2 * s;
 
@@ -293,10 +285,10 @@
       const name = pickPattern(world);
       spawn(world, name);
       if (world.level >= 5 && name !== 'ring' && name !== 'wall' && world.rnd() < 0.3) spawn(world, 'aimed');
-      const slow = Math.pow(0.99, Math.max(0, world.t * world.cfg.ramp - 70) / 5);
+      const slow = Math.pow(0.99, Math.max(0, world.t - 70) / 5);
       const warmup = 1 + 0.6 * Math.max(0, 1 - world.t / 10); // 처음 10초는 천천히
       const interval = Math.max(0.4, INTERVAL[world.level - 1] * slow * warmup);
-      world.next += (interval * PATTERNS[name].cost) / world.cfg.rate;
+      world.next += interval * PATTERNS[name].cost;
     }
 
     // 화살 움직이기와 맞았는지 보기
@@ -353,7 +345,6 @@
     HIT,
     MOVE,
     DT,
-    MODES,
     PATTERNS,
     TITLES,
     createWorld,

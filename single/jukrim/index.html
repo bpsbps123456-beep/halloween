@@ -11,30 +11,7 @@
 <style>
   .eyebrow { margin: 0; color: var(--text-dim); font-size: 0.85em; letter-spacing: 0.08em; }
   .big-title { color: var(--mint); text-shadow: 0 0.06em 0 #0b2a24; }
-  .modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6em; width: 100%; }
-  .mode-btn {
-    display: flex; flex-direction: column; align-items: center; gap: 0.15em;
-    padding: 0.6em 0.4em; border: 0; border-radius: 0.9em;
-    background: var(--bg-card); color: var(--text); cursor: pointer; touch-action: manipulation;
-    box-shadow: inset 0 0 0 0.12em var(--line);
-    transition: transform 0.08s ease, background 0.15s ease;
-  }
-  .mode-btn b { font-weight: 400; font-size: 1.25em; }
-  .mode-btn span { font-size: 0.8em; color: var(--text-dim); }
-  .mode-btn:hover { background: var(--line); }
-  .mode-btn:active { transform: translateY(0.1em); }
-  .mode-btn:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.12em; }
-  .mode-btn.picked { background: var(--mint); color: #0b2a24; box-shadow: none; }
-  .mode-btn.picked span { color: #1d5246; }
-  .tabs { display: flex; gap: 0.4em; }
-  .tabs button {
-    padding: 0.3em 0.9em; border: 0; border-radius: 999px; background: var(--bg-card);
-    color: var(--text-dim); cursor: pointer; touch-action: manipulation;
-  }
-  .tabs button[aria-selected="true"] { background: var(--mint); color: #0b2a24; }
-  .tabs button:focus-visible { outline: 0.15em solid var(--candle); outline-offset: 0.1em; }
   .new-record { margin: 0; color: var(--candle); font-size: 1.1em; }
-  @media (prefers-reduced-motion: reduce) { .mode-btn, .mode-btn:active { transition: none; transform: none; } }
 </style>
 </head>
 <body>
@@ -63,28 +40,20 @@
             <dt>터치 · 마우스</dt><dd>화면을 누른 채 끌면 그만큼 움직여요</dd>
             <dt>빛나는 화살촉</dt><dd>끝에만 안 닿으면 돼요. 화살대와 깃은 스쳐도 괜찮아요!</dd>
           </dl>
-          <div class="modes" role="group" aria-label="난이도 고르고 시작하기">
-            <button class="mode-btn" type="button" data-mode="easy"><b>쉬움</b><span>느린 화살, 미리 알려 줘요</span></button>
-            <button class="mode-btn" type="button" data-mode="normal"><b>보통</b><span>원작과 비슷해요</span></button>
-            <button class="mode-btn" type="button" data-mode="hard"><b>어려움</b><span>빠르고 예고 없이 와요</span></button>
-          </div>
+          <p class="hint">화살이 들어올 자리는 화면 가장자리에 주황색 표시로 미리 알려 줘요 · 시간이 지날수록 레벨이 올라요</p>
           <div class="row">
+            <button class="btn" id="startBtn" type="button">시작하기</button>
             <button class="btn btn-quiet" id="boardBtn" type="button">명예의 전당</button>
           </div>
-          <p class="hint">난이도를 누르면 바로 시작해요 · <span class="key">Space</span> 는 마지막에 고른 난이도로 시작</p>
+          <p class="hint"><span class="key">Space</span> 를 눌러도 시작해요</p>
         </div>
       </section>
 
       <section class="overlay" id="boardScreen" hidden>
         <div class="panel">
           <h2 class="big-title">명예의 전당</h2>
-          <div class="tabs" role="tablist" aria-label="난이도">
-            <button type="button" role="tab" data-tab="easy">쉬움</button>
-            <button type="button" role="tab" data-tab="normal">보통</button>
-            <button type="button" role="tab" data-tab="hard">어려움</button>
-          </div>
+          <p class="hint">이 컴퓨터(브라우저)에 저장된 상위 10명</p>
           <ol class="board" id="boardList"></ol>
-          <p class="hint">이 컴퓨터(브라우저)에 저장된 난이도별 상위 10명</p>
           <button class="btn" id="boardClose" type="button">닫기</button>
         </div>
       </section>
@@ -102,7 +71,7 @@
 
       <section class="overlay" id="resultScreen" hidden>
         <div class="panel">
-          <p class="sub-title" id="resultMode">보통</p>
+          <p class="sub-title">버틴 시간</p>
           <p class="result-score" id="resultScore">0.00초</p>
           <span class="result-badge" id="resultTitle">꼬마 유령</span>
           <p class="new-record" id="newRecord" hidden>✨ 이 컴퓨터 새 기록! ✨</p>

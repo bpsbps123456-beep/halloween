@@ -151,7 +151,7 @@
       b.type = 'button';
       b.textContent = String(i + 1);
       b.disabled = i > top;
-      b.title = i > top ? '앞 단계를 성공하면 열려요' : i + 1 + '단계 · ' + st.name;
+      b.title = i > top ? '앞 단계를 성공하면 열려요' : i + 1 + '단계 · ' + st.name + ' · 난이도 ' + st.d;
       b.setAttribute('aria-label', b.title);
       b.addEventListener('click', () => startGame(i));
       box.appendChild(b);
@@ -476,7 +476,7 @@
     }
     const s = game.stats;
     const st = C.STAGES[game.stage];
-    $('clearStage').textContent = game.stage + 1 + '단계 · ' + st.name;
+    $('clearStage').textContent = game.stage + 1 + '단계 · ' + st.name + ' · 난이도 ' + st.d;
     const tally = $('clearTally');
     tally.textContent = '';
     const row = (label, value, cls) => {
@@ -495,7 +495,8 @@
     row('단계 성공', '+' + C.CLEAR_BONUS);
     if (s.allGold) row('황금 별사탕 모두 모음!', '+' + C.ALL_GOLD_BONUS, 'bonus');
     $('clearScore').textContent = '총 ' + HG.formatNumber(game.total) + '점';
-    $('nextBtn').textContent = game.stage + 2 + '단계로 · ' + C.STAGES[game.stage + 1].name;
+    const nx = C.STAGES[game.stage + 1];
+    $('nextBtn').textContent = game.stage + 2 + '단계로 · ' + nx.name + ' (난이도 ' + nx.d + ')';
     setMode('clear');
     show('clear');
   }
@@ -1042,7 +1043,7 @@
     const m = game.mode;
     if (m === 'intro') {
       const st = C.STAGES[game.stage];
-      banner(game.stage + 1 + '단계', st.name);
+      banner(game.stage + 1 + '단계', st.name + ' · 난이도 ' + st.d);
       if (game.modeT > 0.9) HG.text(ctx, '준비…', W / 2, H / 2 + 74, { size: 24, color: '#ffd166', stroke: 'rgba(12, 7, 22, 0.9)', strokeWidth: 5 });
     } else if (m === 'play' && game.goT < 0.7) {
       banner('출발!', null, 1 - game.goT / 0.7);

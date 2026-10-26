@@ -12,7 +12,7 @@
   const view = HG.fitStage($('stageArea'), $('stage'), canvas, W, H);
   const ctx = view.ctx;
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-  const boardKey = (mode) => 'jukrim-' + mode;
+  const BOARD = 'jukrim';
   const fmt = (s) => (Math.floor(s * 100 + 1e-6) / 100).toFixed(2) + '초'; // 9.79*100=978.99… 같은 오차를 막아요
 
   function seeded(seed) {
@@ -170,8 +170,7 @@
   /* ---------------- 상태 ---------------- */
   const game = {
     mode: 'title', // title | board | count | play | hit | over | paused
-    modeName: HG.store.get('jukrim:mode', 'normal'),
-    world: J.createWorld('normal', 1),
+    world: J.createWorld(1),
     t: 0,
     modeT: 0,
     paused: null,
@@ -180,7 +179,6 @@
     banner: null,
     nearCool: 0,
   };
-  if (!J.MODES[game.modeName]) game.modeName = 'normal';
 
   const trail = [];
   const texts = [];
@@ -204,22 +202,15 @@
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
   }
 
-  function paintModes() {
-    document.querySelectorAll('.mode-btn').forEach((b) => b.classList.toggle('picked', b.dataset.mode === game.modeName));
-  }
-
   function goTitle() {
     HG.sound.stopMusic();
-    game.world = J.createWorld(game.modeName, 1);
+    game.world = J.createWorld(1);
     setMode('title');
-    paintModes();
     show('title');
   }
 
-  function start(mode) {
-    game.modeName = mode;
-    HG.store.set('jukrim:mode', mode);
-    game.world = J.createWorld(mode);
+  function start() {
+    game.world = J.createWorld();
     trail.length = 0;
     texts.length = 0;
     game.banner = null;
@@ -310,8 +301,8 @@
     if (e.target && e.target.closest && e.target.closest('button, a')) return;
     e.preventDefault();
     if (e.repeat) return;
-    if (game.mode === 'title') start(game.modeName);
-    else if (game.mode === 'over' && game.modeT > 0.8 && $('nameForm').hidden) start(game.modeName);
+    if (game.mode === 'title') start();
+    else if (game.mode === 'over' && game.modeT > 0.8 && $('nameForm').hidden) start();
   });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
 
@@ -424,10 +415,8 @@
   function showResult() {
     const w = game.world;
     const secs = Math.floor(w.t * 100 + 1e-6) / 100;
-    const key = boardKey(game.modeName);
-    const prev = HG.best.get(key);
-    const record = HG.best.submit(key, secs) && prev > 0;
-    $('resultMode').textContent = J.MODES[game.modeName].label + ' 난이도';
+    const prev = HG.best.get(BOARD);
+    const record = HG.best.submit(BOARD, secs) && prev > 0;
     $('resultScore').textContent = fmt(secs);
     $('resultTitle').textContent = J.titleFor(secs);
     $('newRecord').hidden = !record;
@@ -445,7 +434,7 @@
       stats.appendChild(span);
     });
     HG.setupResultBoard({
-      game: key,
+      game: BOARD,
       score: secs,
       form: $('nameForm'),
       input: $('nameInput'),
@@ -509,9 +498,9 @@
     const stroke = { stroke: 'rgba(5, 8, 20, 0.85)', strokeWidth: 6 };
     const secs = game.mode === 'count' ? 0 : w.t;
     HG.text(ctx, fmt(secs), W / 2, 36, Object.assign({ size: 40 }, stroke));
-    const best = HG.best.get(boardKey(game.modeName));
+    const best = HG.best.get(BOARD);
     if (best > 0) HG.text(ctx, '최고 ' + fmt(best), W / 2, 72, Object.assign({ size: 17, color: '#ffd166' }, stroke));
-    HG.text(ctx, J.MODES[game.modeName].label + ' · 레벨 ' + w.level, 20, 30, Object.assign({ size: 20, align: 'left', color: '#9ff0d8' }, stroke));
+    HG.text(ctx, '레벨 ' + w.level, 20, 30, Object.assign({ size: 20, align: 'left', color: '#9ff0d8' }, stroke));
     HG.text(ctx, '피한 화살 ' + w.dodged, W - 20, 30, Object.assign({ size: 20, align: 'right' }, stroke));
   }
 
@@ -586,22 +575,9 @@
   };
 
   /* ---------------- 버튼 연결 ---------------- */
-  document.querySelectorAll('.mode-btn').forEach((b) => b.addEventListener('click', () => start(b.dataset.mode)));
-
-  let tab = game.modeName;
-  function paintBoard() {
-    document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
-    HG.renderBoard($('boardList'), boardKey(tab), (row) => fmt(row.score), -1);
-  }
-  document.querySelectorAll('.tabs button').forEach((b) =>
-    b.addEventListener('click', () => {
-      tab = b.dataset.tab;
-      paintBoard();
-    })
-  );
+  $('startBtn').addEventListener('click', start);
   $('boardBtn').addEventListener('click', () => {
-    tab = game.modeName;
-    paintBoard();
+    HG.renderBoard($('boardList'), BOARD, (row) => fmt(row.score), -1);
     setMode('board');
     show('board');
     $('boardClose').focus();
@@ -609,7 +585,7 @@
   $('boardClose').addEventListener('click', goTitle);
   $('resumeBtn').addEventListener('click', resume);
   $('quitBtn').addEventListener('click', goTitle);
-  $('retryBtn').addEventListener('click', () => start(game.modeName));
+  $('retryBtn').addEventListener('click', start);
   $('homeBtn').addEventListener('click', goTitle);
   $('pauseBtn').addEventListener('click', () => {
     $('pauseBtn').blur();
