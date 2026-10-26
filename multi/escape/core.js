@@ -6,6 +6,7 @@
 
   const DEFAULT_SCHOOL = '동암초등학교';
   const DEFAULT_CLASS = '6-3'; // 우리 반 (신관 2층)
+  const DEFAULT_SEED = 20261031; // 문제 고정 번호 (선생님 정답지가 이 판 기준)
   const HINT_PENALTY = 30; // 힌트 한 번에 +30초
   const CAUGHT_PENALTY = 30; // 경비원에게 잡히면 +30초
 
@@ -874,7 +875,8 @@
       noisy: names(r.noisy, 6),
       friends: names(r.friends, 30),
       // 문제 고정: 숫자를 정해 두면 판마다 같은 문제가 나와요 (선생님이 정답을 미리 알 수 있게)
-      seed: Number.isInteger(r.seed) && r.seed > 0 && r.seed < 1e9 ? r.seed : 0,
+      // 따로 정하지 않으면 늘 같은 문제(정답지와 같은 판)가 나와요
+      seed: Number.isInteger(r.seed) && r.seed > 0 && r.seed < 1e9 ? r.seed : DEFAULT_SEED,
     };
   }
 

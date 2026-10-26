@@ -36,6 +36,8 @@
     return m ? E.decodeSettings(m[1]) : null;
   }
   let settings = linkSettings() || E.normalizeSettings(HG.store.get(SETTINGS, null));
+  // 선생님 링크로 한 번 열면 이 기기에 기억해서, 다음에 게임 목록에서 들어와도 같은 설정이에요
+  if (linkSettings()) HG.store.set(SETTINGS, settings);
   const shortName = (s) => s.replace('초등학교', '초');
 
   HG.bindMuteButton($('muteBtn'));
@@ -110,6 +112,7 @@
   function loadSave() {
     const s = HG.store.get(SAVE, null);
     if (!s || s.v !== 2 || typeof s.stage !== 'number' || !ROUTE[s.stage] || Date.now() - s.at > 3 * 3600 * 1000) return null;
+    if (s.seed !== settings.seed) return null; // 예전 문제로 하던 판은 이어서 하지 않아요
     return s;
   }
 
