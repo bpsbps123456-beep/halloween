@@ -151,7 +151,8 @@ test('현관 자물쇠: 방마다 숫자 하나, 그림 순서대로 맞춰야 �
 
 test('선생님 설정: 주소로 주고받고, 이상한 값은 걸러요', () => {
   const s = { school: '동암초등학교', myClass: '6-3', quiz: [{ q: '개교기념일은 몇 월?', a: '5월, 오월' }] };
-  assert.deepEqual(E.decodeSettings(E.encodeSettings(s)), s);
+  assert.deepEqual(E.decodeSettings(E.encodeSettings(s)), E.normalizeSettings(s));
+  assert.equal(E.decodeSettings(E.encodeSettings(s)).school, '동암초등학교');
   assert.equal(E.decodeSettings('망가진주소'), null);
   const n = E.normalizeSettings({ school: '   ', myClass: '9-9', quiz: [{ q: '', a: 'x' }, 3, null] });
   assert.equal(n.school, '동암초등학교');
@@ -160,6 +161,26 @@ test('선생님 설정: 주소로 주고받고, 이상한 값은 걸러요', () 
   assert.ok(E.checkAnswer(' 오 월 ', '5월, 오월'));
   assert.ok(!E.checkAnswer('', '5월'));
   assert.deepEqual(E.createRun(1, s).puzzles.quiz, [{ q: '개교기념일은 몇 월?', a: '5월, 오월' }]);
+});
+
+test('우리 반 꾸미기: 담임 선생님·급훈·주번·떠든 사람·사물함 이름표', () => {
+  const s = E.normalizeSettings({ teacher: ' 홍길동 ', motto: '서로 돕자', duty: '김철수, 이영희', noisy: '박하나 최두리,  정세나', friends: ['가나', '', '다라'] });
+  assert.equal(s.teacher, '홍길동');
+  assert.deepEqual(s.duty, ['김철수', '이영희']);
+  assert.deepEqual(s.noisy, ['박하나', '최두리', '정세나']);
+  assert.deepEqual(s.friends, ['가나', '다라']);
+  assert.deepEqual(E.decodeSettings(E.encodeSettings(s)), s);
+  // 담임 선생님 이름이 교무실 자리 퍼즐에 나와요 (정답은 이름과 상관없이 같아요)
+  const run = E.createRun(9, s);
+  assert.equal(run.teacher, '홍길동');
+  assert.equal(run.puzzles.office.teachers[0], '홍길동');
+  assert.deepEqual(run.puzzles.office.solution, E.createRun(9, {}).puzzles.office.solution);
+  // 이름이 너무 많거나 길면 잘라요
+  const big = E.normalizeSettings({ noisy: 'ㄱ,ㄴ,ㄷ,ㄹ,ㅁ,ㅂ,ㅅ,ㅇ', friends: 'a'.repeat(20) });
+  assert.equal(big.noisy.length, 6);
+  assert.equal(big.friends[0].length, 8);
+  // 예전 주소(이름 칸 없음)도 그대로 열려요
+  assert.deepEqual(E.normalizeSettings({ school: '동암초등학교', myClass: '6-3', quiz: [] }).noisy, []);
 });
 
 test('복도: 출발할 때는 경비원 불빛 밖이고, 도착 문은 숨을 곳 사이에 있어요', () => {

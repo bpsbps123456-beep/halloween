@@ -274,7 +274,7 @@
 
     // 칠판 (앞 벽 x = 0)
     const form = E.COUNT_FORMS[run.puzzles.classroom.form].parts;
-    const boardM = L.own(new T.MeshLambertMaterial({ map: L.own(texFrom(X.classBoard(run.school, run.myClass, form))) }));
+    const boardM = L.own(new T.MeshLambertMaterial({ map: L.own(texFrom(X.classBoard(run, form))) }));
     kit.box(0.05, 1.42, 4.5, 0.025, 1.6, 3.75, M.darkWood);
     const bd = board(L, boardM, 4.4, 1.32, 0.06, 1.6, 3.75, Math.PI / 2);
     L.tag(bd, { action: 'board', label: '🔍 칠판 보기', reach: 6 });
@@ -283,8 +283,11 @@
     kit.box(0.04, 0.03, 0.06, 0.1, 0.96, 4.4, lam(0xffd166));
     // 시계·달력·시간표·TV
     poster(kit, 'clock', () => X.clock(11, 47), 0.5, 0.5, 0.03, 2.55, 3.75, Math.PI / 2);
+    // 급훈 액자 (칠판 위, 시계 옆)
+    const mottoM = L.own(new T.MeshLambertMaterial({ map: L.own(texFrom(X.motto(run.motto || '서로 돕고 함께 웃자'))) }));
+    board(L, mottoM, 1.7, 0.42, 0.04, 2.6, 2.25, Math.PI / 2);
     poster(kit, 'calendar', () => X.calendar(), 0.5, 0.58, 0.03, 1.55, 0.98, Math.PI / 2);
-    poster(kit, 'timetable-' + run.myClass, () => X.timetable(run.myClass), 0.8, 0.8, 8.98, 1.75, 6.2, -Math.PI / 2);
+    poster(kit, 'timetable-' + run.myClass + run.teacher, () => X.timetable(run.myClass, run.teacher), 0.8, 0.8, 8.98, 1.75, 6.2, -Math.PI / 2);
     kit.box(0.08, 0.68, 1.15, 0.05, 2.0, 6.4, M.black);
     poster(kit, 'tvScreen', () => X.screen(['할로윈 파티', '방과 후 강당']), 1.05, 0.6, 0.095, 2.0, 6.4, Math.PI / 2);
     // 교탁과 선생님 책상
@@ -307,7 +310,7 @@
     drawer.add(front, knob, pad, led);
     drawer.position.set(1.9, 0.62, 5.6);
     L.scene.add(drawer);
-    L.tag(drawer, { action: 'drawer', label: '🔒 선생님 책상 서랍', reach: 2.6 });
+    L.tag(drawer, { action: 'drawer', label: '🔒 ' + (run.teacher ? run.teacher + ' ' : '') + '선생님 책상 서랍', reach: 2.6 });
     let drawerOpen = 0;
     L.openDrawer = () => {
       led.material = new T.MeshBasicMaterial({ color: 0x3bff7a });
@@ -322,6 +325,14 @@
     kit.cyl(0.06, 0.07, 0.16, 1.6, 0.82, 6.4, new T.MeshLambertMaterial({ color: 0xffd9a0, emissive: 0x553300 }), 12);
     candleLight(L, 1.6, 1.05, 6.4, 0xffa860, 2.6);
     kit.block(0.3, 0.06, 0.22, 1.45, 0.76, 5.5, lam(0xf2efe8)); // 출석부
+    // 선생님 이름표 (학생 쪽을 봐요)
+    const signM = L.own(new T.MeshLambertMaterial({ map: L.own(texFrom(X.label(run.teacher ? '담임 ' + run.teacher : '담임 선생님', '#f7f3e6', '#1b2233'))), alphaTest: 0.5 }));
+    const sign = new T.Mesh(new T.PlaneGeometry(0.42, 0.105), signM);
+    sign.position.set(1.84, 0.82, 6.0);
+    sign.rotation.set(0, Math.PI / 2, 0);
+    sign.rotateX(-0.35);
+    L.scene.add(sign);
+    kit.box(0.06, 0.1, 0.42, 1.8, 0.79, 6.0, M.darkWood);
     // 학생 책상 24개 (칠판을 봐요)
     const rows = [3.0, 4.1, 5.2, 6.3];
     const cols = [1.35, 2.0, 3.4, 4.05, 5.45, 6.1];
@@ -337,7 +348,8 @@
     L.collide(0.5, 5.6, 1.1, 6.2);
     // 뒤 사물함과 환경판 (뒤 벽 x = 9)
     kit.block(0.42, 0.9, 5.9, 8.79, 0, 3.95, lam(0x8a6a4a));
-    const cub = tmat('cubbies', () => X.cubbies(51), { clamp: true });
+    // 사물함 이름표: 선생님이 반 친구 이름을 적어 두면 그 이름이 나와요
+    const cub = run.friends && run.friends.length ? L.own(new T.MeshLambertMaterial({ map: L.own(texFrom(X.cubbies(51, run.friends))) })) : tmat('cubbies', () => X.cubbies(51), { clamp: true });
     kit.panel(5.9, 0.9, 8.575, 0.45, 3.95, -Math.PI / 2, cub);
     L.collide(8.55, 0.98, 9, 6.92);
     const env = tmat('bulletin-class', () => X.bulletin(44, '우리 반 할로윈', true), { clamp: true });

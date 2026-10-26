@@ -26,7 +26,7 @@
   /* 진행 표시 */
   .hud { position: absolute; top: 0.5em; right: 0.6em; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.35em; align-items: center; z-index: 4; max-width: 60%; }
   .hud-chip { padding: 0.25em 0.7em; border-radius: 999px; background: rgba(12, 8, 22, 0.78); font-size: 0.9em; white-space: nowrap; }
-  .hud-time { color: var(--candle); font-variant-numeric: tabular-nums; }
+  .hud-time { color: var(--candle); font-variant-numeric: tabular-nums; cursor: default; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
   .hud-btn {
     padding: 0.3em 0.8em; border: 0; border-radius: 999px; background: var(--pumpkin); color: var(--pumpkin-ink);
     font: inherit; font-size: 0.9em; cursor: pointer; touch-action: manipulation;
@@ -316,6 +316,16 @@
               <label>학교 이름 <input id="tSchool" maxlength="20"></label>
               <label>출발 교실 (우리 반) <select id="tClass"></select></label>
             </div>
+            <div class="two">
+              <label>담임 선생님 이름 <input id="tTeacher" maxlength="10" placeholder="예: 홍길동"></label>
+              <label>급훈 <input id="tMotto" maxlength="24" placeholder="예: 서로 돕고 함께 웃자"></label>
+            </div>
+            <div class="two">
+              <label>칠판 「주번」 <input id="tDuty" maxlength="40" placeholder="이름을 쉼표로 나눠요"></label>
+              <label>칠판 「떠든 사람」 (장난으로!) <input id="tNoisy" maxlength="60" placeholder="이름을 쉼표로 나눠요"></label>
+            </div>
+            <label>사물함 이름표 (우리 반 친구들, 번호 순서대로) <input id="tFriends" maxlength="300" placeholder="이름을 쉼표로 나눠요"></label>
+            <p class="hint">이름은 이 기기와 학생용 주소(QR)에만 담겨요. 공개된 사이트 코드에는 들어가지 않아요. 게임 중에 위쪽 시계(⏱)를 빠르게 5번 누르면 선생님 정답지가 나와요.</p>
             <p class="hint">교무실 컴퓨터에 나올 문제를 직접 낼 수 있어요 (비워 두면 안 나와요). 답이 여러 개면 쉼표로 나눠요.</p>
             <div class="qa"><input id="tQ1" maxlength="80" placeholder="문제 1 (예: 우리 학교 개교기념일은 몇 월?)"><input id="tA1" maxlength="40" placeholder="답 (예: 5월, 오월)"></div>
             <div class="qa"><input id="tQ2" maxlength="80" placeholder="문제 2"><input id="tA2" maxlength="40" placeholder="답"></div>

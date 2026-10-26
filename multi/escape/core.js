@@ -253,7 +253,8 @@
 
   /* ---------------- 5. 교무실: 선생님 자리 논리 퍼즐 ---------------- */
   const SEATS = 5;
-  const teacherNames = (myClass) => [myClass + ' 담임', '과학', '음악', '체육', '영어'];
+  /** 선생님 이름을 정해 두면 담임 선생님은 이름으로 나와요 (예: 홍길동 선생님) */
+  const teacherNames = (myClass, teacher) => [teacher || myClass + ' 담임', '과학', '음악', '체육', '영어'];
   const PERMS = (function () {
     const out = [];
     const a = range(SEATS);
@@ -306,7 +307,7 @@
     return out;
   }
 
-  function makeOffice(rnd, myClass) {
+  function makeOffice(rnd, myClass, teacher) {
     for (let attempt = 0; attempt < 200; attempt++) {
       const sol = PERMS[Math.floor(rnd() * PERMS.length)];
       const cands = trueClues(sol)
@@ -329,7 +330,7 @@
         if (solutionsFor(without).length === 1) chosen = without;
       }
       if (chosen.length < 4 || chosen.length > 6) continue;
-      return { teachers: teacherNames(myClass), solution: sol.slice(), clues: shuffle(chosen, rnd) };
+      return { teachers: teacherNames(myClass, teacher), solution: sol.slice(), clues: shuffle(chosen, rnd) };
     }
     throw new Error('office puzzle');
   }
@@ -375,7 +376,7 @@
       science: makeScience(rnd),
       library: makeLibrary(rnd),
       broadcast: makeBroadcast(rnd),
-      office: makeOffice(rnd, s.myClass),
+      office: makeOffice(rnd, s.myClass, s.teacher),
       nurse: makeNurse(rnd),
       quiz: s.quiz.map((q) => ({ q: q.q, a: q.a })), // 선생님이 낸 문제 (교무실 컴퓨터)
     };
@@ -385,6 +386,12 @@
       seed,
       school: s.school,
       myClass: s.myClass,
+      // 우리 반만의 것: 칠판·급훈·사물함 이름표에 나와요
+      teacher: s.teacher,
+      motto: s.motto,
+      duty: s.duty,
+      noisy: s.noisy,
+      friends: s.friends,
       steps,
       exit: EXIT,
       digits,
@@ -806,7 +813,24 @@
       .filter((q) => q && typeof q.q === 'string' && typeof q.a === 'string' && q.q.trim() && q.a.trim())
       .slice(0, 3)
       .map((q) => ({ q: q.q.trim().slice(0, 80), a: q.a.trim().slice(0, 40) }));
-    return { school, myClass, quiz };
+    const text = (v, n) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, n) : '');
+    // 이름 목록: 쉼표·띄어쓰기로 나눠 적어도 돼요
+    const names = (v, max) =>
+      (Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[,，、\s]+/) : [])
+        .filter((x) => typeof x === 'string')
+        .map((x) => x.trim().slice(0, 8))
+        .filter(Boolean)
+        .slice(0, max);
+    return {
+      school,
+      myClass,
+      quiz,
+      teacher: text(r.teacher, 10),
+      motto: text(r.motto, 24),
+      duty: names(r.duty, 4),
+      noisy: names(r.noisy, 6),
+      friends: names(r.friends, 30),
+    };
   }
 
   function toBase64(bytes) {
@@ -817,7 +841,11 @@
 
   function encodeSettings(settings) {
     const s = normalizeSettings(settings);
-    return toBase64(new TextEncoder().encode(JSON.stringify({ v: 1, school: s.school, myClass: s.myClass, quiz: s.quiz })));
+    const out = { v: 1, school: s.school, myClass: s.myClass, quiz: s.quiz };
+    ['teacher', 'motto', 'duty', 'noisy', 'friends'].forEach((k) => {
+      if (s[k] && s[k].length) out[k] = s[k];
+    });
+    return toBase64(new TextEncoder().encode(JSON.stringify(out)));
   }
 
   function decodeSettings(code) {

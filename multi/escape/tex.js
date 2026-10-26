@@ -567,7 +567,7 @@
   };
 
   /** 교실 뒤 사물함 (12칸 × 2줄) */
-  X.cubbies = function (seed) {
+  X.cubbies = function (seed, names) {
     const c = make(1024, 256);
     const g = c.getContext('2d');
     const r = rand(seed || 51);
@@ -582,9 +582,10 @@
         g.fillRect(x, y, 78, 116);
         g.fillStyle = 'rgba(0,0,0,0.25)';
         g.fillRect(x + 60, y + 50, 10, 18);
+        const name = names && names[row * 12 + i];
         g.fillStyle = '#ffffff';
-        g.fillRect(x + 12, y + 12, 54, 20);
-        txt(g, String(row * 12 + i + 1), x + 39, y + 23, 15, '#333');
+        g.fillRect(x + 6, y + 10, 66, 24);
+        txt(g, name || String(row * 12 + i + 1), x + 39, y + 23, name ? 18 : 15, '#333', { maxW: 62 });
         if (r() < 0.15) {
           g.fillStyle = ['#3d6bd8', '#9b4dd8', '#2fbf71'][Math.floor(r() * 3)];
           rr(g, x + 24, y + 70, 30, 22, 5);
@@ -799,20 +800,94 @@
   }
   X.tokens = tokens;
 
-  /** 6-3 교실 칠판: 할로윈 인사 + 유령의 수수께끼 */
-  X.classBoard = function (school, myClass, form) {
-    const { c, g } = chalkBoard(1024, 320);
-    chalk(g, '할로윈 파티 D-0', 200, 70, 46, '#ffd9a0');
-    chalk(g, school + ' ' + myClass, 200, 128, 26);
-    chalk(g, '★ 오늘의 수수께끼 ★', 690, 52, 32, '#ffe9a8');
-    tokens(g, form.concat(['=', '?']), 690, 130, 54, '#f4f1e6', 'chalk');
-    chalk(g, '교실에 숨은 것들을 모두 세어 봐!', 690, 200, 28, '#d6f5ff');
-    chalk(g, '답은 선생님 책상 서랍 비밀번호  — 유령 부', 690, 248, 24, '#ffd0e6');
-    chalk(g, '★ 사탕 나눔: 6교시', 200, 196, 24, '#d6f5ff');
-    chalk(g, '★ 분장 대회: 강당', 200, 240, 24, '#d6f5ff');
+  /** 분필로 그은 바를 정(正) 표시: n번 */
+  function tally(g, x, y, n, size) {
+    g.save();
+    g.strokeStyle = '#f4f1e6';
+    g.lineWidth = size * 0.09;
+    g.lineCap = 'round';
+    g.shadowColor = '#f4f1e6';
+    g.shadowBlur = 2;
+    for (let k = 0; k < n; k++) {
+      const box = Math.floor(k / 5);
+      const st = k % 5;
+      const ox = x + box * size * 1.15;
+      const w = size * 0.8;
+      g.beginPath();
+      if (st === 0) {
+        g.moveTo(ox, y - size * 0.42);
+        g.lineTo(ox + w, y - size * 0.42);
+      } else if (st === 1) {
+        g.moveTo(ox + w / 2, y - size * 0.42);
+        g.lineTo(ox + w / 2, y + size * 0.42);
+      } else if (st === 2) {
+        g.moveTo(ox + w / 2, y);
+        g.lineTo(ox + w * 0.9, y);
+      } else if (st === 3) {
+        g.moveTo(ox + w * 0.15, y - size * 0.05);
+        g.lineTo(ox + w * 0.15, y + size * 0.42);
+      } else {
+        g.moveTo(ox, y + size * 0.42);
+        g.lineTo(ox + w, y + size * 0.42);
+      }
+      g.stroke();
+    }
+    g.restore();
+  }
+  const nameHash = (str) => Array.from(str).reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+
+  /** 우리 반 칠판: 담임 선생님, 주번, 떠든 사람 + 유령의 수수께끼
+      o = { school, myClass, teacher, duty: [], noisy: [] } */
+  X.classBoard = function (o, form) {
+    const { c, g } = chalkBoard(1280, 384);
+    // 왼쪽: 우리 반 소식
+    chalk(g, '할로윈 파티 D-0', 270, 58, 46, '#ffd9a0');
+    chalk(g, o.teacher ? '담임  ' + o.teacher + ' 선생님' : o.school + ' ' + o.myClass, 270, 112, 30);
+    if (o.duty && o.duty.length) chalk(g, '주번  ' + o.duty.join(', '), 270, 156, 28, '#d6f5ff');
+    else chalk(g, o.school + ' ' + o.myClass, 270, 156, 24, '#d6f5ff');
+    chalk(g, '★ 사탕 나눔 6교시   ★ 분장 대회 강당', 270, 198, 22, '#ffd0e6');
+    // 떠든 사람 (정 표시)
+    const noisy = o.noisy && o.noisy.length ? o.noisy.slice(0, 4) : ['유령 부'];
+    g.strokeStyle = 'rgba(244,241,230,0.75)';
+    g.lineWidth = 3;
+    g.strokeRect(40, 226, 470, 136);
+    chalk(g, '떠든 사람', 110, 250, 26, '#ffe9a8');
+    noisy.forEach((name, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = 60 + col * 230;
+      const y = 290 + row * 46;
+      chalk(g, name, x, y, 28, '#f4f1e6', 'left');
+      g.font = '28px ' + DISPLAY();
+      tally(g, x + Math.min(110, g.measureText(name).width + 14), y, 3 + (nameHash(name) % 6), 26);
+    });
+    // 가운데 줄
+    g.fillStyle = 'rgba(244,241,230,0.35)';
+    g.fillRect(548, 40, 4, 310);
+    // 오른쪽: 유령의 수수께끼
+    chalk(g, '★ 오늘의 수수께끼 ★', 910, 58, 34, '#ffe9a8');
+    tokens(g, form.concat(['=', '?']), 910, 146, 60, '#f4f1e6', 'chalk');
+    chalk(g, '교실에 숨은 것들을 모두 세어 봐!', 910, 232, 30, '#d6f5ff');
+    chalk(g, '답은 ' + (o.teacher ? o.teacher + ' ' : '') + '선생님 책상 서랍 비밀번호', 910, 284, 26, '#ffd0e6');
+    chalk(g, '— 유령 부', 1180, 330, 24, '#ffd0e6');
     g.fillStyle = 'rgba(255,255,255,0.7)';
-    g.fillRect(60, 290, 30, 6);
-    g.fillRect(940, 290, 22, 6);
+    g.fillRect(70, 372, 30, 6);
+    g.fillRect(1180, 372, 22, 6);
+    return c;
+  };
+
+  /** 급훈 액자 */
+  X.motto = function (text) {
+    const c = make(1024, 256);
+    const g = c.getContext('2d');
+    const r = rand(17);
+    g.fillStyle = '#5a3b22';
+    g.fillRect(0, 0, 1024, 256);
+    g.fillStyle = '#fbf7ea';
+    g.fillRect(18, 18, 988, 220);
+    speckle(g, 1024, 256, 300, ['#d8d0b8'], r, 2, 0.3);
+    txt(g, '급 훈', 512, 54, 28, '#c0392b');
+    txt(g, text, 512, 150, 84, '#1b2233', { font: DISPLAY(), maxW: 940 });
     return c;
   };
 
@@ -991,9 +1066,9 @@
   };
 
   /** 6-3 시간표 */
-  X.timetable = function (myClass) {
+  X.timetable = function (myClass, teacher) {
     const { c, g } = paper(512, 512, '#fffdf4');
-    txt(g, myClass + ' 시간표', 256, 44, 40, '#c0392b');
+    txt(g, myClass + ' 시간표' + (teacher ? ' · 담임 ' + teacher : ''), 256, 44, teacher ? 32 : 40, '#c0392b', { maxW: 480 });
     const days = ['월', '화', '수', '목', '금'];
     const subj = [
       ['국어', '수학', '사회', '과학', '체육'],

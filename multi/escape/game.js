@@ -274,7 +274,7 @@
     $('titleName').textContent = shortName(settings.school) + ' 탈출';
     document.querySelector('.game-bar h1').firstChild.textContent = shortName(settings.school) + ' 탈출';
     $('titleStory').textContent =
-      '할로윈 밤, ' + settings.myClass + ' 교실에서 깜빡 잠들었다 깨어 보니 학교 문이 모두 잠겼어요! 장난꾸러기 유령 ‘부’가 방마다 수수께끼와 숫자를 숨겨 두었대요. ' +
+      '할로윈 밤, ' + (settings.teacher ? settings.teacher + ' 선생님 반(' + settings.myClass + ')' : settings.myClass) + ' 교실에서 깜빡 잠들었다 깨어 보니 학교 문이 모두 잠겼어요! 장난꾸러기 유령 ‘부’가 방마다 수수께끼와 숫자를 숨겨 두었대요. ' +
       '손전등을 든 경비 아저씨를 피해 복도를 몰래 지나고, 숫자를 모아 중앙 현관 자물쇠를 열어요.';
     const saved = loadSave();
     const rb = $('resumeBtn');
@@ -738,6 +738,8 @@
   /* ================ 방마다 수수께끼 ================ */
   const ROOMS = {};
 
+  const teacherOf = () => (game.run && game.run.teacher ? game.run.teacher + ' 선생님' : '선생님');
+
   /* ---------- 1. 교실: 칠판의 수수께끼 ---------- */
   ROOMS.classroom = function () {
     const pz = game.run.puzzles.classroom;
@@ -748,8 +750,13 @@
         b.append(el('p', 'formula', formula));
         b.append(el('p', 'q', '교실 곳곳에 숨어 있는 호박🎃 · 박쥐🦇 · 거미🕷️ 를 모두 세어 식을 풀어요. (칠판 그림은 빼고!)'));
         b.append(el('p', 'step', '찾은 것을 누르면 민트색 표시가 생겨요. 같은 것을 두 번 세지 않게 표시해 두세요. 숫자는 직접 세어야 해요!'));
-        b.append(el('p', 'step', '답은 선생님 책상 서랍의 비밀번호예요.'));
+        b.append(el('p', 'step', '답은 ' + teacherOf() + ' 책상 서랍의 비밀번호예요.'));
+        // 칠판 「떠든 사람」에 이름이 있으면 유령이 놀려요
+        const noisy = game.run.noisy || [];
+        if (noisy.length && !boardSeen) say('어? 칠판 「떠든 사람」에 ' + noisy[0] + ' 이름이 있네? 히히, 쉿! 조용히 탈출하자.', 5000);
+        boardSeen = true;
       });
+    let boardSeen = false;
     return {
       interact(info) {
         if (info.action === 'item') {
@@ -758,7 +765,7 @@
         } else if (info.action === 'board') showBoard();
         else if (info.action === 'drawer') {
           if (game.solved) return say('서랍은 이미 열렸어!', 2000);
-          openPanel('선생님 책상 서랍', (b) => {
+          openPanel(teacherOf() + ' 책상 서랍', (b) => {
             b.append(el('p', 'formula', formula));
             b.append(el('p', 'step', '두 자리 비밀번호를 눌러요'));
             keypad(b, {
@@ -1151,7 +1158,7 @@
             say('맞았어! 그런데 교무실 컴퓨터에 선생님이 낸 문제가 떠 있어!', 4000);
             quizPanel();
           } else {
-            say('딩동댕! 6-3 담임 선생님 서랍에서 숫자 카드가 나왔어!'.replace('6-3', game.run.myClass), 4000);
+            say('딩동댕! ' + (game.run.teacher ? game.run.teacher + ' 선생님' : game.run.myClass + ' 담임 선생님') + ' 서랍에서 숫자 카드가 나왔어!', 4000);
             setTimeout(solved, 400);
           }
         });
@@ -1633,6 +1640,43 @@
   });
   $('homeBtn').addEventListener('click', goTitle);
 
+  /* ---------------- 선생님 정답지: 시계(⏱)를 2.5초 안에 5번 누르면 열려요 ---------------- */
+  function answerKey() {
+    const run = game.run;
+    const P = run.puzzles;
+    const icon = (id) => run.steps.find((s) => s.id === id).icon;
+    openPanel('🔑 선생님 정답지', (b) => {
+      b.append(el('p', 'step', '이 기기에서 지금 하는 판의 정답이에요. 판마다 달라요. 학생들에게는 살짝만!'));
+      const ol = el('ol', 'clues');
+      const add = (title, text) => {
+        const li = el('li');
+        li.append(el('b', null, title + ': '), document.createTextNode(text));
+        ol.append(li);
+      };
+      const c = P.classroom;
+      add('교실 서랍', c.answer + '  (🎃' + c.counts.pumpkin + ' 🦇' + c.counts.bat + ' 🕷️' + c.counts.spider + ', 식 ' + E.COUNT_FORMS[c.form].parts.join(' ') + ')');
+      add('과학실 물약', P.science.recipes.map((rc, i) => i + 1 + ') ' + rc.color + ' ' + rc.parts.map((p, k) => p + ' ' + rc.amounts[k]).join(' + ')).join('  '));
+      add('도서관 속담', P.library.books.map((bk) => bk.before + '「' + bk.blank + '」' + bk.after).join(' / '));
+      add('방송실 비밀번호', P.broadcast.code);
+      const seats = [];
+      P.office.solution.forEach((seat, t) => (seats[seat] = P.office.teachers[t]));
+      add('교무실 자리', seats.map((n, i) => i + 1 + '번 ' + n).join(', ') + (P.quiz.length ? ' · 선생님 문제 답: ' + P.quiz.map((q) => q.a).join(' / ') : ''));
+      add('보건실 약장', P.nurse.answer + '  (🩹=' + P.nurse.a + ', 💊=' + P.nurse.b + ', 🌡️=' + P.nurse.c + ')');
+      add('현관 자물쇠', run.lock.map((id) => run.digits[id]).join('') + '  (' + run.lock.map((id) => icon(id) + run.digits[id]).join(' ') + ')');
+      b.append(ol);
+    });
+  }
+  let keyTaps = [];
+  $('hudTime').addEventListener('click', () => {
+    const now = Date.now();
+    keyTaps = keyTaps.filter((t) => now - t < 2500);
+    keyTaps.push(now);
+    if (keyTaps.length >= 5 && game.mode === 'play' && game.run) {
+      keyTaps = [];
+      answerKey();
+    }
+  });
+
   /* ---------------- 수첩·명예의 전당·선생님 설정 ---------------- */
   let noteBack = null;
   $('noteBtn').addEventListener('click', () => {
@@ -1677,6 +1721,11 @@
       $('tQ' + n).value = q ? q.q : '';
       $('tA' + n).value = q ? q.a : '';
     });
+    $('tTeacher').value = s.teacher || '';
+    $('tMotto').value = s.motto || '';
+    $('tDuty').value = (s.duty || []).join(', ');
+    $('tNoisy').value = (s.noisy || []).join(', ');
+    $('tFriends').value = (s.friends || []).join(', ');
   }
   $('teacherBtn').addEventListener('click', () => {
     fillTeacher(settings);
@@ -1692,6 +1741,11 @@
       school: $('tSchool').value,
       myClass: tClass.value,
       quiz: [1, 2, 3].map((n) => ({ q: $('tQ' + n).value, a: $('tA' + n).value })),
+      teacher: $('tTeacher').value,
+      motto: $('tMotto').value,
+      duty: $('tDuty').value,
+      noisy: $('tNoisy').value,
+      friends: $('tFriends').value,
     });
     HG.store.set(SETTINGS, settings);
     const code = E.encodeSettings(settings);
@@ -1834,6 +1888,7 @@
       showOverlay(null);
     },
     solve: () => solved(),
+    answerKey: () => answerKey(),
     pick: (nx, ny) => pickAt(nx || 0, ny || 0),
   };
 })();
