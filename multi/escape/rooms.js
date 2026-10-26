@@ -73,6 +73,9 @@
     L.own(glow.material);
     glow.position.set(dx, 1.1, 0.03);
     L.scene.add(glow);
+    // 문이 옆으로 열리면 문짝이 없어도 문 자리(빛나는 곳)를 누르면 나가요
+    L.tag(glow, { action: 'exit', label: '🚪 복도로 나가기', reach: 2.4 });
+    L.exitAt = { x: dx };
     let open = 0;
     let opening = false;
     L.exitOpen = false;
@@ -308,11 +311,34 @@
     const led = new T.Mesh(new T.BoxGeometry(0.01, 0.015, 0.015), new T.MeshBasicMaterial({ color: 0xff3b3b }));
     led.position.set(0.047, 0.03, 0.2);
     drawer.add(front, knob, pad, led);
+    // 서랍 통 (밀려 나오면 안이 보여요): 바닥·옆·뒤 + 뒷문 열쇠와 숫자 카드
+    const wood = lam(0x8a6040);
+    [
+      [0.34, 0.012, 0.5, -0.19, -0.065, 0],
+      [0.34, 0.11, 0.012, -0.19, -0.01, 0.245],
+      [0.34, 0.11, 0.012, -0.19, -0.01, -0.245],
+      [0.012, 0.11, 0.5, -0.355, -0.01, 0],
+    ].forEach(([w, h, d, x, y, z]) => {
+      const m = new T.Mesh(new T.BoxGeometry(w, h, d), wood);
+      m.position.set(x, y, z);
+      drawer.add(m);
+    });
+    const gold = lam(0xffc93c, { emissive: 0x4a3200 });
+    const ring = new T.Mesh(new T.TorusGeometry(0.025, 0.008, 6, 14), gold);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(-0.15, -0.05, -0.1);
+    const shaft = new T.Mesh(new T.BoxGeometry(0.012, 0.01, 0.09), gold);
+    shaft.position.set(-0.15, -0.05, -0.03);
+    const card = new T.Mesh(new T.BoxGeometry(0.12, 0.004, 0.09), lam(0xf4e3b0, { emissive: 0x2a2000 }));
+    card.position.set(-0.2, -0.056, 0.1);
+    card.rotation.y = 0.3;
+    drawer.add(ring, shaft, card);
     drawer.position.set(1.9, 0.62, 5.6);
     L.scene.add(drawer);
     L.tag(drawer, { action: 'drawer', label: '🔒 ' + (run.teacher ? run.teacher + ' ' : '') + '선생님 책상 서랍', reach: 2.6 });
     let drawerOpen = 0;
     L.openDrawer = () => {
+      drawer.userData.info.label = '📂 열린 서랍 (열쇠와 숫자 카드)';
       led.material = new T.MeshBasicMaterial({ color: 0x3bff7a });
       L.own(led.material);
       L.drawerOpening = true;

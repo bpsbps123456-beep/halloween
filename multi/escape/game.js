@@ -656,6 +656,11 @@
     player.moving = Math.abs(m.f) + Math.abs(m.s) > 0.05;
     player.running = player.moving && m.run;
     footsteps(dt, 0.06);
+    // 열린 문으로 걸어 들어가도 나가요
+    if (game.solved && level.exitOpen && level.exitAt && !level.leaving && Math.abs(player.x - level.exitAt.x) < 0.55 && player.z < 0.5) {
+      level.leaving = true;
+      leaveRoom();
+    }
   }
   function footsteps(dt, quiet) {
     if (!player.moving) {
