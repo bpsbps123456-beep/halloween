@@ -1211,6 +1211,12 @@
   }
 
   /* ---------------- 선생님 설정 (주소에 담아 학생 기기로 보냅니다) ---------------- */
+  /** 반 전체 명예의 전당: 구글 Apps Script 웹 앱 주소만 받아요 (…/exec) */
+  function sheetUrl(v) {
+    const m = /^https:\/\/script\.google\.com\/(?:a\/macros\/[\w.-]+|macros)\/s\/[\w-]+\/exec/.exec(typeof v === 'string' ? v.trim() : '');
+    return m ? m[0] : '';
+  }
+
   function normalizeSettings(raw) {
     const r = raw && typeof raw === 'object' ? raw : {};
     const school = typeof r.school === 'string' && r.school.trim() ? r.school.trim().slice(0, 20) : DEFAULT_SCHOOL;
@@ -1239,6 +1245,7 @@
       // 문제 고정: 숫자를 정해 두면 판마다 같은 문제가 나와요 (선생님이 정답을 미리 알 수 있게)
       // 따로 정하지 않으면 늘 같은 문제(정답지와 같은 판)가 나와요
       seed: Number.isInteger(r.seed) && r.seed > 0 && r.seed < 1e9 ? r.seed : DEFAULT_SEED,
+      sheet: sheetUrl(r.sheet),
     };
   }
 
@@ -1251,7 +1258,7 @@
   function encodeSettings(settings) {
     const s = normalizeSettings(settings);
     const out = { v: 1, school: s.school, myClass: s.myClass, quiz: s.quiz };
-    ['teacher', 'motto', 'duty', 'noisy', 'friends', 'seed'].forEach((k) => {
+    ['teacher', 'motto', 'duty', 'noisy', 'friends', 'seed', 'sheet'].forEach((k) => {
       if (k === 'seed' ? s.seed : s[k] && s[k].length) out[k] = s[k];
     });
     return toBase64(new TextEncoder().encode(JSON.stringify(out)));
@@ -1337,6 +1344,7 @@
     checkAnswer,
     checkLock,
     formatTime,
+    sheetUrl,
     normalizeSettings,
     encodeSettings,
     decodeSettings,

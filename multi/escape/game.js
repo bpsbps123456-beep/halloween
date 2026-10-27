@@ -1681,6 +1681,105 @@
   }
 
   /* ---------------- 탈출 성공 ---------------- */
+  /* ---------------- 반 전체 명예의 전당 (구글 시트) ----------------
+     선생님 설정에 시트 웹 앱 주소가 있으면, 어느 기기에서 탈출해도 기록이 한 시트에 모여요.
+     인터넷이 안 되면 이 기기에만 저장해 두었다가 다음에 다시 보내요. */
+  const PENDING = 'escape:pending';
+  const classKey = () => settings.school + ' ' + settings.myClass;
+  function sheetCall(url, params) {
+    const q = Object.keys(params)
+      .map((k) => k + '=' + encodeURIComponent(params[k]))
+      .join('&');
+    const ctrl = window.AbortController ? new AbortController() : null;
+    const timer = setTimeout(() => ctrl && ctrl.abort(), 12000);
+    return fetch(url + '?' + q, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+      .then((r) => r.json())
+      .then((d) => {
+        clearTimeout(timer);
+        if (!d || !d.ok) throw new Error((d && d.error) || '시트 응답이 이상해요');
+        return d;
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        throw err;
+      });
+  }
+  function flushPending() {
+    const list = HG.store.get(PENDING, []);
+    if (!Array.isArray(list) || !list.length) return Promise.resolve();
+    const rec = list[0];
+    return sheetCall(rec.sheet, Object.assign({ action: 'add' }, rec.params)).then(
+      () => {
+        HG.store.set(PENDING, HG.store.get(PENDING, []).filter((r) => r.params.id !== rec.params.id));
+        return flushPending();
+      },
+      () => {}
+    );
+  }
+  const sharedList = () => flushPending().then(() => sheetCall(settings.sheet, { action: 'list', cls: classKey() }));
+  function renderRows(ol, rows, me) {
+    ol.textContent = '';
+    if (!rows.length) {
+      ol.append(el('li', 'empty', '아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!'));
+      return;
+    }
+    rows.forEach((row, i) => {
+      const li = el('li', i === me ? 'me' : null);
+      li.append(el('span', 'who', row.name), el('span', 'what', boardFormat(row)));
+      ol.append(li);
+    });
+  }
+  function boardNote(id, text) {
+    $(id).textContent = text;
+    $(id).hidden = !text;
+  }
+  /** 탈출 성공 화면: 이름을 적으면 반 전체 명예의 전당(시트)에 올려요 */
+  function sharedResult() {
+    const form = $('nameForm');
+    const input = $('nameInput');
+    const list = $('resultBoard');
+    form.hidden = false;
+    input.value = game.team || HG.store.get('lastName', '');
+    list.textContent = '';
+    boardNote('resultBoardNote', '📡 반 전체 기록을 불러오는 중…');
+    sharedList().then(
+      (d) => {
+        if (form.hidden) return;
+        renderRows(list, d.rows, -1);
+        boardNote('resultBoardNote', '우리 반 전체 명예의 전당이에요');
+      },
+      () => {
+        if (form.hidden) return;
+        HG.renderBoard(list, GAME, boardFormat, -1);
+        boardNote('resultBoardNote', '반 전체 기록을 못 불러와서 이 기기 기록을 보여 줘요');
+      }
+    );
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const name = input.value.trim();
+      if (!name) return input.focus();
+      HG.store.set('lastName', name);
+      form.hidden = true;
+      HG.board.add(GAME, name, game.finalTime, { hints: game.hints, caught: game.caught }, true);
+      const params = { cls: classKey(), name, score: game.finalTime, hints: game.hints, caught: game.caught, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) };
+      boardNote('resultBoardNote', '📡 반 전체 명예의 전당에 올리는 중…');
+      sheetCall(settings.sheet, Object.assign({ action: 'add' }, params)).then(
+        (d) => {
+          renderRows(list, d.rows, d.rank < 10 ? d.rank : -1);
+          boardNote('resultBoardNote', '✅ 올렸어요! 우리 반 ' + (d.rank + 1) + '등' + (d.rank >= 10 ? ' (10등 안에 들면 여기 보여요)' : ''));
+          HG.sound.play('gold');
+          $('againBtn').focus();
+        },
+        () => {
+          HG.store.set(PENDING, HG.store.get(PENDING, []).concat([{ sheet: settings.sheet, params }]));
+          HG.renderBoard(list, GAME, boardFormat, -1);
+          boardNote('resultBoardNote', '인터넷이 안 돼서 이 기기에만 저장했어요. 다음에 명예의 전당을 열면 다시 보내요.');
+          $('againBtn').focus();
+        }
+      );
+    };
+  }
+
   const boardFormat = (row) => E.formatTime(row.score) + (row.hints ? ' · 💡' + row.hints : '') + (row.caught ? ' · 👮' + row.caught : '');
   function finish() {
     game.finalTime = Math.round(elapsed() * 10) / 10;
@@ -1706,18 +1805,21 @@
       stats.append(span);
     });
     HG.best.submit(GAME, game.finalTime, true);
-    HG.setupResultBoard({
-      game: GAME,
-      score: game.finalTime,
-      asc: true,
-      name: game.team,
-      extra: { hints: game.hints, caught: game.caught },
-      form: $('nameForm'),
-      input: $('nameInput'),
-      list: $('resultBoard'),
-      format: boardFormat,
-      onSaved: () => $('againBtn').focus(),
-    });
+    $('resultBoardNote').hidden = true;
+    if (settings.sheet) sharedResult();
+    else
+      HG.setupResultBoard({
+        game: GAME,
+        score: game.finalTime,
+        asc: true,
+        name: game.team,
+        extra: { hints: game.hints, caught: game.caught },
+        form: $('nameForm'),
+        input: $('nameInput'),
+        list: $('resultBoard'),
+        format: boardFormat,
+        onSaved: () => $('againBtn').focus(),
+      });
     setTimeout(() => {
       if (game.mode === 'done') showOverlay('resultScreen');
     }, 3200);
@@ -1790,8 +1892,17 @@
   });
   $('boardBtn').addEventListener('click', () => {
     HG.renderBoard($('boardList'), GAME, boardFormat, -1);
+    $('boardHint').textContent = settings.sheet ? '📡 우리 반 전체 기록을 불러오는 중…' : '이 기기에서 가장 빨리 탈출한 10모둠';
     showOverlay('boardScreen');
     $('boardClose').focus();
+    if (!settings.sheet) return;
+    sharedList().then(
+      (d) => {
+        renderRows($('boardList'), d.rows, -1);
+        $('boardHint').textContent = '우리 반 전체에서 가장 빨리 탈출한 10모둠';
+      },
+      () => ($('boardHint').textContent = '반 전체 기록을 못 불러왔어요 (인터넷 확인). 이 기기 기록이에요')
+    );
   });
   $('boardClose').addEventListener('click', () => showOverlay('titleScreen'));
 
@@ -1814,7 +1925,22 @@
     $('tDuty').value = (s.duty || []).join(', ');
     $('tNoisy').value = (s.noisy || []).join(', ');
     $('tFriends').value = (s.friends || []).join(', ');
+    $('tSheet').value = s.sheet || '';
+    $('tSheetNote').textContent = '만드는 법은 게임 목록의 README 「반 전체 명예의 전당」에 있어요';
   }
+  $('tSheetTest').addEventListener('click', () => {
+    const url = E.sheetUrl($('tSheet').value);
+    const note = $('tSheetNote');
+    if (!url) {
+      note.textContent = '❌ 주소가 맞지 않아요. https://script.google.com/macros/s/…/exec 모양이어야 해요';
+      return;
+    }
+    note.textContent = '📡 확인하는 중…';
+    sheetCall(url, { action: 'list', cls: E.normalizeSettings({ school: $('tSchool').value, myClass: tClass.value }).school + ' ' + tClass.value }).then(
+      (d) => (note.textContent = '✅ 연결됐어요! 지금 우리 반 기록 ' + d.rows.length + '개 · 「저장하기」를 눌러 주세요'),
+      () => (note.textContent = '❌ 연결이 안 돼요. 배포할 때 액세스 권한을 「모든 사용자」로 했는지 확인해 주세요')
+    );
+  });
   $('teacherBtn').addEventListener('click', () => {
     fillTeacher(settings);
     $('tShare').hidden = true;
@@ -1834,6 +1960,7 @@
       duty: $('tDuty').value,
       noisy: $('tNoisy').value,
       friends: $('tFriends').value,
+      sheet: $('tSheet').value,
       seed: settings.seed, // 문제 고정은 그대로
     });
     HG.store.set(SETTINGS, settings);
@@ -1981,6 +2108,7 @@
       showOverlay(null);
     },
     solve: () => solved(),
+    finish: () => finish(),
     answerKey: () => answerKey(),
     pick: (nx, ny) => pickAt(nx || 0, ny || 0),
   };
