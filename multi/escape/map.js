@@ -104,6 +104,22 @@
         });
       });
     });
+    // 잠긴 현관 (신관 현관, 본관 동쪽 현관): 그래서 본관 중앙 현관까지 돌아가요
+    [
+      ['sin', 1, 0],
+      ['bon', 1, 11],
+    ].forEach(([b, f, i]) => {
+      const r = cellRect(b, f, i);
+      ctx.strokeStyle = '#e8443a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(r.x + 6, r.y + 5);
+      ctx.lineTo(r.x + r.w - 6, r.y + r.h - 5);
+      ctx.moveTo(r.x + r.w - 6, r.y + 5);
+      ctx.lineTo(r.x + 6, r.y + r.h - 5);
+      ctx.stroke();
+      text(ctx, '잠김', r.x + r.w / 2, r.y + r.h + 9, 11, '#ff6b6b');
+    });
     // 연결통로
     ctx.strokeStyle = o.paper ? 'rgba(20, 140, 110, 0.8)' : 'rgba(159, 240, 216, 0.6)';
     ctx.setLineDash([6, 6]);

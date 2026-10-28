@@ -839,14 +839,85 @@
   /** 우리 반 칠판: 담임 선생님, 주번, 떠든 사람 + 유령의 수수께끼
       o = { school, myClass, teacher, duty: [], noisy: [] } */
   /** 복도 옆 다른 교실 칠판 (밤이라 아무도 없어요) */
-  X.roomBoard = function () {
+  X.roomBoard = function (names) {
     const { c, g } = chalkBoard(960, 320);
-    chalk(g, '10월 31일 할로윈', 480, 70, 44, '#ffd9a0');
-    chalk(g, '복도에서 뛰지 않기!', 480, 150, 38);
-    chalk(g, '숙제: 분장 준비물 챙기기', 480, 215, 30, '#d6f5ff');
+    chalk(g, '10월 31일 할로윈', 480, 62, 44, '#ffd9a0');
+    if (names && names.length) chalk(g, '오늘의 주번  ' + names.join(', '), 480, 140, 38, '#d6f5ff');
+    else chalk(g, '복도에서 뛰지 않기!', 480, 140, 38);
+    chalk(g, '숙제: 분장 준비물 챙기기', 480, 215, 30, '#f4f1e6');
     chalk(g, '🎃', 840, 260, 48);
     return c;
   };
+
+  /** 복도 벽에 붙은 우리 반 친구 이름 종이 (상장·생일·칭찬왕·분실물·그림·독서왕) */
+  X.namePoster = function (kind, name, seed) {
+    const r = rand(seed || 3);
+    if (kind === 'award') {
+      const { c, g } = paper(360, 480, '#fffaf0');
+      g.strokeStyle = '#c9a227';
+      g.lineWidth = 14;
+      g.strokeRect(14, 14, 332, 452);
+      g.lineWidth = 3;
+      g.strokeRect(30, 30, 300, 420);
+      txt(g, '상  장', 180, 92, 54, '#8a5a12', { font: DISPLAY() });
+      txt(g, ['줄넘기 왕', '수학 왕', '친절 왕', '정리정돈 왕'][Math.floor(r() * 4)], 180, 170, 34, '#1b2233');
+      txt(g, name, 180, 240, 52, '#1b2233', { font: DISPLAY(), maxW: 280 });
+      txt(g, '위 어린이는 할로윈 주간에', 180, 312, 22, '#444');
+      txt(g, '누구보다 멋졌기에', 180, 344, 22, '#444');
+      txt(g, '이 상장을 드립니다.', 180, 376, 22, '#444');
+      g.fillStyle = '#d7263d';
+      g.beginPath();
+      g.arc(260, 420, 26, 0, TAU);
+      g.fill();
+      txt(g, '참', 260, 421, 26, '#fff');
+      return c;
+    }
+    if (kind === 'birthday') {
+      const { c, g } = paper(360, 480, '#ffe3ef');
+      txt(g, '생일 축하해!', 180, 80, 46, '#d6336c', { font: DISPLAY() });
+      icon(g, '🎂', 180, 220, 150, 'ink');
+      txt(g, name, 180, 350, 58, '#1b2233', { font: DISPLAY(), maxW: 300 });
+      txt(g, '- 6학년 친구들 -', 180, 420, 24, '#8a4a6a');
+      return c;
+    }
+    if (kind === 'praise') {
+      const { c, g } = paper(360, 480, '#eaf6ff');
+      txt(g, '오늘의 칭찬왕', 180, 76, 42, '#2b6cb0', { font: DISPLAY() });
+      icon(g, '⭐', 180, 200, 130, 'ink');
+      txt(g, name, 180, 320, 58, '#1b2233', { font: DISPLAY(), maxW: 300 });
+      txt(g, ['친구를 먼저 도와줬어요', '고운 말을 썼어요', '끝까지 포기 안 했어요'][Math.floor(r() * 3)], 180, 392, 24, '#335');
+      return c;
+    }
+    if (kind === 'lost') {
+      const { c, g } = paper(360, 480, '#fff4a8');
+      txt(g, '분실물', 180, 70, 48, '#c0392b', { font: DISPLAY() });
+      icon(g, ['👟', '✏️', '🧢', '🧤'][Math.floor(r() * 4)], 180, 200, 120, 'ink');
+      txt(g, name + '의', 180, 310, 44, '#1b2233', { font: DISPLAY(), maxW: 300 });
+      txt(g, ['실내화 한 짝', '연필', '모자', '장갑'][Math.floor(r() * 4)] + '을 찾아가세요', 180, 368, 26, '#333', { maxW: 320 });
+      txt(g, '(교무실 앞)', 180, 410, 22, '#666');
+      return c;
+    }
+    if (kind === 'reading') {
+      const { c, g } = paper(360, 480, '#effae6');
+      txt(g, '이달의 독서왕', 180, 76, 42, '#2f7a4f', { font: DISPLAY() });
+      icon(g, '📚', 180, 200, 130, 'ink');
+      txt(g, name, 180, 320, 58, '#1b2233', { font: DISPLAY(), maxW: 300 });
+      txt(g, '책 ' + (20 + Math.floor(r() * 30)) + '권 읽음!', 180, 392, 28, '#335');
+      return c;
+    }
+    // 그림: 크레파스 호박 그림 + 그린이
+    const { c, g } = paper(360, 480, '#ffffff');
+    g.fillStyle = '#1a1030';
+    g.fillRect(24, 24, 312, 330);
+    g.fillStyle = '#fff3cf';
+    g.beginPath();
+    g.arc(270, 80, 30, 0, TAU);
+    g.fill();
+    icon(g, ['🎃', '👻', '🦇', '🧙'][Math.floor(r() * 4)], 180, 220, 170, 'ink');
+    txt(g, '그린이  ' + name, 180, 410, 34, '#1b2233', { font: DISPLAY(), maxW: 320 });
+    return c;
+  };
+
   X.classBoard = function (o, form) {
     const { c, g } = chalkBoard(1280, 384);
     // 왼쪽: 우리 반 소식
@@ -1209,15 +1280,23 @@
     return c;
   };
 
-  /** 신발장 */
-  X.shoeLockers = function (seed) {
-    const c = make(512, 512);
+  /** 유령 부가 붙여 둔 쪽지 (손글씨 줄) */
+  X.booNote = function (lines) {
+    const { c, g } = paper(384, 512, '#fff59a');
+    lines.forEach((ln, i) => txt(g, ln, 192, 80 + i * 82, i === lines.length - 1 ? 34 : 40, i === lines.length - 1 ? '#7a4ad0' : '#1b2233', { font: DISPLAY(), maxW: 350 }));
+    return c;
+  };
+
+  /** 신발장: names 를 주면 이름표에 우리 반 친구 이름 (cols 칸 × 6줄) */
+  X.shoeLockers = function (seed, names, cols, label) {
+    const n = cols || 6;
+    const c = make(16 + n * 84, 512);
     const g = c.getContext('2d');
     const r = rand(seed || 81);
     g.fillStyle = '#7a5a3a';
-    g.fillRect(0, 0, 512, 512);
+    g.fillRect(0, 0, c.width, 512);
     for (let y = 0; y < 6; y++)
-      for (let x = 0; x < 6; x++) {
+      for (let x = 0; x < n; x++) {
         const px = 8 + x * 84;
         const py = 8 + y * 84;
         g.fillStyle = '#2a1d12';
@@ -1229,9 +1308,19 @@
           g.ellipse(px + 54, py + 62, 18, 9, 0, 0, TAU);
           g.fill();
         }
+        const name = names && names[y * n + x];
         g.fillStyle = '#fff';
-        g.fillRect(px + 22, py + 4, 34, 12);
+        if (name) {
+          g.fillRect(px + 4, py + 4, 70, 20);
+          txt(g, name, px + 39, py + 15, 15, '#222', { maxW: 66 });
+        } else g.fillRect(px + 22, py + 4, 34, 12);
       }
+    if (label) {
+      g.fillStyle = 'rgba(255, 209, 102, 0.95)';
+      rr(g, 8, 8, 90, 26, 6);
+      g.fill();
+      txt(g, label, 53, 22, 18, '#2a1400');
+    }
     return c;
   };
 

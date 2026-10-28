@@ -349,7 +349,8 @@
     const team = $('teamInput').value.trim() || '1모둠';
     HG.store.set('escape:team', team);
     blurActive();
-    begin(team, settings.seed || (Math.random() * 1e9) | 0);
+    const seed = settings.seed || (Math.random() * 1e9) | 0;
+    playOpening(E.createRun(seed, settings), () => begin(team, seed));
   });
   $('resumeBtn').addEventListener('click', () => {
     const s = loadSave();
@@ -453,6 +454,11 @@
 
   window.addEventListener('keydown', (e) => {
     if (HG.isTyping(e)) return;
+    if (op.on && ['Escape', 'Enter', 'NumpadEnter', 'Space'].indexOf(e.code) >= 0) {
+      e.preventDefault();
+      opFinish();
+      return;
+    }
     if (e.code === 'KeyM') {
       HG.sound.toggle();
       return;
@@ -660,7 +666,8 @@
     // 열린 문으로 걸어 들어가도 나가요
     if (game.solved && level.exitOpen && level.exitAt && !level.leaving && Math.abs(player.x - level.exitAt.x) < 0.55 && player.z < 0.5) {
       level.leaving = true;
-      leaveRoom();
+      if (st.onExit) st.onExit();
+      else leaveRoom();
     }
   }
   function footsteps(dt, quiet) {
@@ -758,8 +765,198 @@
       return;
     }
     HG.sound.play('creak');
+    if (ROUTE[game.stage].id === 'classroom') return startLobby();
     nextStage();
   }
+
+  /* ---------------- 신관 1층 현관: 잠겼어요! (화이트데이처럼 돌아서 가야 해요) ----------------
+     교실을 나와 1층 현관으로 내려왔지만 쇠사슬과 셔터로 막혀 있어요.
+     유령 부가 나타나 3층 연결통로로 본관에 건너가라고 알려 줘요. */
+  function startLobby() {
+    closePanel();
+    game.stage = 1; // 이어서 하면 신관 3층 복도부터
+    save();
+    setLevel(R.lobby(game.run));
+    let tried = 0;
+    st = {
+      kind: 'lobby',
+      onExit: () => st.interact({ action: 'exit' }),
+      interact(info) {
+        if (info.action === 'blocked') {
+          tried++;
+          level.rattle();
+          HG.sound.play('clang');
+          if (tried === 1) {
+            say('덜컹덜컹! 쇠사슬로 꽁꽁 잠겼어… 밖에는 셔터까지 내려와 있어!', 3200);
+            setTimeout(() => {
+              if (!st || st.kind !== 'lobby') return;
+              level.showGhost();
+              HG.sound.play('boo');
+              say('히히! 신관 현관은 내가 잠가 버렸지! 진짜 출구는 본관 1층 중앙 현관이야. 3층 연결통로로 본관에 건너가 봐!', 7500);
+              level.openExit();
+              $('roomGoal').textContent = '신관 현관은 막혔어요! 계단으로 3층까지 올라가 연결통로로 본관에 건너가요.';
+            }, 2600);
+          } else say('꿈쩍도 안 해… 계단으로 올라가서 본관으로 가자!', 2600);
+        } else if (info.action === 'note') {
+          openPanel('유령 부의 쪽지', (b) => {
+            b.append(el('p', 'q', '“신관 현관은 내가 잠갔지롱! 진짜 출구는 본관 중앙 현관 👻”'));
+            b.append(el('p', 'step', '대피 안내도를 보면 신관과 본관은 3층 연결통로로 이어져 있어요.'));
+          });
+        } else if (info.action === 'exit') {
+          if (!level.exitOpen) return say('먼저 현관문을 열어 볼까?', 2500);
+          HG.sound.play('creak');
+          enterStage(1);
+        }
+      },
+    };
+    roomCard('신관 1층 현관', '🚪 잠긴 신관 현관', '교실을 빠져나와 계단으로 1층까지 내려왔어요. 현관문으로 나가 볼까요?');
+    $('hudPlace').textContent = '신관 1층 현관';
+    HG.sound.stopMusic();
+    paintHintBtn();
+    say('드디어 1층 현관이야! 이제 나가기만 하면 돼…', 4000);
+  }
+
+  /* ---------------- 오프닝 (화이트데이처럼) ----------------
+     밤의 학교 → 교문이 철컹 닫혀요 → 복도 끝에서 경비 아저씨가 다가와요 → 제목.
+     만든이(담임 선생님)와 출연(우리 반 친구들)은 선생님 설정(링크)에서 와요. 건너뛰기·Enter·Esc 로 넘어가요. */
+  const op = { on: false, t: 0, plan: [], i: 0, end: 0, cam: null, shotAt: 0, shake: 0, done: null, hall: null, speed: 1 };
+  function opCaption(text) {
+    const c = $('opCaption');
+    if (text) c.textContent = text;
+    c.classList.toggle('on', !!text);
+  }
+  function opCredit(role, who, names) {
+    const c = $('opCredit');
+    if (!role) return c.classList.remove('on');
+    c.textContent = '';
+    c.append(el('p', 'role', role));
+    if (who) c.append(el('p', 'who', who));
+    if (names && names.length) {
+      const g = el('div', 'names');
+      names.forEach((n, i) => {
+        const sp = el('span', null, n);
+        sp.style.animationDelay = 0.4 + i * 0.12 + 's';
+        g.append(sp);
+      });
+      c.append(g);
+    }
+    c.classList.add('on');
+  }
+  const opFade = (black) => ($('opFade').style.opacity = black ? '1' : '0');
+  const ease = (k) => {
+    const v = Math.max(0, Math.min(1, k));
+    return v * v * (3 - 2 * v);
+  };
+  /** 운동장: 교문을 지나 학교로 걸어가다가… 철컹! 뒤돌아봐요 */
+  function opYard(run) {
+    setLevel(R.outside(run, { opening: true }));
+    op.hall = null;
+    op.shotAt = op.t;
+    op.cam = (t) => {
+      player.x = Math.sin(t * 0.5) * 0.12;
+      player.y = Math.abs(Math.sin(t * 3.2)) * 0.03 * (t < 6 ? 1 : 0);
+      player.z = -27 + ease(t / 6.2) * 15.5;
+      player.yaw = Math.PI + ease((t - 6.9) / 1.3) * Math.PI;
+      player.pitch = 0.12 - ease((t - 6.9) / 1.3) * 0.1;
+    };
+  }
+  /** 복도: 캄캄한 복도 끝에서 손전등을 든 경비 아저씨가 다가와요 */
+  function opHall(run) {
+    const h = E.createHall(E.HALLS[0], 77);
+    h.player.hidden = 0; // 경비원에게 안 들켜요 (화면만)
+    const g = h.guard;
+    g.turn = 0;
+    g.checkChance = 0;
+    g.min = 6;
+    g.x = 25;
+    g.face = -1;
+    g.ang = Math.PI;
+    setLevel(W3.buildHall(h, run));
+    op.hall = h;
+    op.shotAt = op.t;
+    op.cam = (t) => {
+      player.x = 3 + t * 0.12;
+      player.y = -0.35;
+      player.z = -0.25;
+      player.yaw = -Math.PI / 2 + Math.sin(t * 0.3) * 0.05;
+      player.pitch = 0.04;
+    };
+  }
+  function playOpening(run, done) {
+    closePanel();
+    showOverlay(null);
+    setHud(false);
+    game.mode = 'opening';
+    st = { kind: 'opening' };
+    Object.assign(op, { on: true, t: 0, i: 0, cam: null, shake: 0, done, hall: null });
+    $('opening').hidden = false;
+    $('opTitle').hidden = true;
+    opFade(true);
+    opCaption('');
+    opCredit(null);
+    HG.sound.stopMusic();
+    const friends = run.friends || [];
+    const maker = run.teacher || run.myClass + ' 담임 선생님';
+    $('opTitleName').textContent = shortName(settings.school) + ' 탈출';
+    $('opMotto').textContent = run.motto ? '“' + run.motto + '”  ·  ' + run.myClass : run.school + ' ' + run.myClass;
+    const plan = [
+      [0.4, () => (opCaption('10월 31일, 할로윈 밤'), HG.sound.play('tick'))],
+      [2.4, () => opCaption('')],
+      [2.8, () => (opYard(run), opFade(false), HG.sound.music(SONG))],
+      [3.6, () => opCredit('만든이', maker)],
+      [7.4, () => opCredit(null)],
+      [9.0, () => (level.closeGate && level.closeGate(), HG.sound.play('clang'), (op.shake = 0.7), opCaption('철컹—!'))],
+      [10.6, () => opCaption('…교문이 닫혔다.')],
+      [12.4, () => (opFade(true), opCaption(''))],
+      [13.4, () => (opHall(run), opFade(false))],
+      [14.0, () => opCredit('출연', run.myClass + ' 친구들', friends.length ? friends : ['우리 반 친구 모두'])],
+      [19.6, () => opCredit(null)],
+      [20.4, () => (run.noisy && run.noisy.length ? opCredit('특별 출연 (칠판에 이름 적힌 사람)', run.noisy.join('  ·  ')) : opCredit('특별 출연', '경비 아저씨  ·  유령 부'))],
+      [23.4, () => (opCredit(null), HG.sound.play('heart'))],
+      [24.2, () => (opFade(true), HG.sound.stopMusic())],
+      [25.2, () => (($('opTitle').hidden = false), HG.sound.play('boo'))],
+      [29.4, () => ($('opTitle').hidden = true)],
+      [29.9, () => opCaption('…깜빡 잠들었다 깨어 보니, 교실에는 아무도 없었다.')],
+    ];
+    op.plan = plan;
+    op.end = 33;
+  }
+  function opUpdate(rawDt) {
+    const dt = rawDt * op.speed; // 자동 검사에서 멈춰 놓고 화면을 찍을 때 0
+    op.t += dt;
+    while (op.i < op.plan.length && op.plan[op.i][0] <= op.t) op.plan[op.i++][1]();
+    if (op.hall) {
+      E.stepHall(op.hall, {}, dt);
+      op.hall.events.length = 0;
+      level.guard.sync(op.hall.guard, dt, game.t);
+    }
+    if (op.cam) op.cam(op.t - op.shotAt);
+    if (op.shake > 0) {
+      op.shake = Math.max(0, op.shake - dt);
+      player.yaw += (Math.random() - 0.5) * op.shake * 0.1;
+      player.pitch += (Math.random() - 0.5) * op.shake * 0.07;
+    }
+    player.moving = false;
+    if (op.t >= op.end) opFinish();
+  }
+  function opFinish() {
+    if (!op.on) return;
+    op.on = false;
+    op.cam = null;
+    op.hall = null;
+    $('opening').hidden = true;
+    $('opTitle').hidden = true;
+    opCaption('');
+    opCredit(null);
+    HG.sound.stopMusic();
+    const d = op.done;
+    op.done = null;
+    if (d) d();
+  }
+  $('opSkip').addEventListener('click', () => {
+    $('opSkip').blur();
+    opFinish();
+  });
 
   /* ================ 방마다 수수께끼 ================ */
   const ROOMS = {};
@@ -2046,7 +2243,8 @@
   function update(dt) {
     game.t += dt;
     if (!level) return;
-    if (game.mode === 'title' && st && st.kind === 'title') updateTitle(dt);
+    if (game.mode === 'opening') opUpdate(dt);
+    else if (game.mode === 'title' && st && st.kind === 'title') updateTitle(dt);
     else if (game.mode === 'play' && st) {
       if (st.kind === 'hall') {
         if (!game.paused && !panelOpen()) updateHall(dt);
@@ -2071,7 +2269,8 @@
 
   function render() {
     if (!level) return;
-    if (st && st.kind !== 'hall') torch.intensity = level.kind === 'outside' ? 0 : 4.5;
+    if (game.mode === 'opening') torch.intensity = 0;
+    else if (st && st.kind !== 'hall') torch.intensity = level.kind === 'outside' ? 0 : 4.5;
     placeCamera();
     view.renderer.render(level.scene, camera);
     if (game.mode === 'play') $('hudTime').textContent = '⏱ ' + E.formatTime(elapsed());
@@ -2109,6 +2308,7 @@
     },
     solve: () => solved(),
     finish: () => finish(),
+    opening: () => op,
     answerKey: () => answerKey(),
     pick: (nx, ny) => pickAt(nx || 0, ny || 0),
   };

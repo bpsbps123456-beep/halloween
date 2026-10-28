@@ -319,6 +319,13 @@
         tone({ type: 'sine', f: 70, to: 45, dur: 0.12, vol: 0.4 });
         tone({ type: 'sine', f: 65, to: 42, dur: 0.12, vol: 0.3, at: 0.18 });
       },
+      // 철컹! 쇠문이 닫히는 소리
+      clang: () => {
+        tone({ type: 'square', f: 196, to: 180, dur: 0.9, vol: 0.06, lowpass: 2200 });
+        tone({ type: 'triangle', f: 523, dur: 1.4, vol: 0.07 });
+        tone({ type: 'triangle', f: 847, dur: 1.0, vol: 0.045 });
+        noise({ f: 2600, to: 700, dur: 0.3, vol: 0.14, q: 1 });
+      },
       creak: () => tone({ type: 'sawtooth', f: 180, to: 320, dur: 0.35, vol: 0.05, lowpass: 900, vib: { rate: 18, depth: 20 } }),
       unlock: () => {
         noise({ type: 'highpass', f: 3000, dur: 0.05, vol: 0.15 });

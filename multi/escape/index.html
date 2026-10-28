@@ -182,6 +182,28 @@
   .link-box { width: 100%; padding: 0.4em 0.6em; border-radius: 0.5em; background: var(--bg); font-size: 0.8em; overflow-wrap: anywhere; user-select: all; }
   .qr { width: 9em; height: 9em; image-rendering: pixelated; border-radius: 0.4em; }
   .stage3d .overlay { z-index: 7; }
+  /* 오프닝: 영화처럼 위아래 검은 띠, 자막, 크레딧 */
+  .opening { position: absolute; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
+  .op-fade { position: absolute; inset: 0; background: #000; opacity: 1; transition: opacity 0.9s ease; }
+  .op-bar { position: absolute; left: 0; right: 0; height: 10%; background: #000; }
+  .op-bar.top { top: 0; }
+  .op-bar.bottom { bottom: 0; }
+  .op-caption { position: absolute; left: 6%; right: 6%; top: 44%; margin: 0; text-align: center; font-family: var(--font-display, inherit); font-size: clamp(1.3em, 3.2vw, 2.4em); color: #f4f1e6; text-shadow: 0 0 0.6em rgba(0, 0, 0, 0.9); opacity: 0; transition: opacity 0.8s ease; letter-spacing: 0.04em; }
+  .op-caption.on { opacity: 1; }
+  .op-credit { position: absolute; left: 7%; bottom: 14%; max-width: 86%; color: #f4f1e6; text-shadow: 0 0 0.5em #000; opacity: 0; transition: opacity 0.9s ease; }
+  .op-credit.on { opacity: 1; }
+  .op-credit .role { margin: 0; font-size: 0.85em; letter-spacing: 0.3em; color: #ffb066; }
+  .op-credit .who { margin: 0.1em 0 0; font-family: var(--font-display, inherit); font-size: clamp(1.4em, 3.4vw, 2.6em); }
+  .op-credit .names { display: grid; grid-template-columns: repeat(6, auto); gap: 0.15em 1.1em; margin: 0.4em 0 0; font-size: clamp(0.9em, 1.7vw, 1.25em); }
+  .op-credit .names span { opacity: 0; animation: opName 0.6s ease forwards; }
+  @keyframes opName { to { opacity: 1; } }
+  .op-title { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; animation: opTitle 2.2s ease; }
+  .op-title h2 { margin: 0; font-family: var(--font-display, inherit); font-size: clamp(2.8em, 9vw, 6.5em); color: #ff8a1f; text-shadow: 0 0 0.35em rgba(255, 90, 0, 0.75), 0 0.06em 0 #3a1400; }
+  .op-title .op-sub { margin: 0.4em 0 0; color: #d9d0ff; letter-spacing: 0.12em; }
+  .op-title .op-motto { margin: 1.4em 0 0; color: #9ff0d8; font-size: 1.05em; }
+  @keyframes opTitle { from { opacity: 0; transform: scale(1.08); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+  .op-skip { position: absolute; right: 1em; bottom: calc(10% + 0.6em); pointer-events: auto; padding: 0.4em 1em; border: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.14); color: #f4f1e6; font: inherit; cursor: pointer; }
+  .op-skip:hover, .op-skip:focus-visible { background: rgba(255, 255, 255, 0.28); outline: none; }
   .loading { position: absolute; inset: 0; z-index: 9; display: grid; place-items: center; background: #05050c; color: var(--text-dim); }
 </style>
 </head>
@@ -240,9 +262,23 @@
         </div>
       </div>
 
+      <div class="opening" id="opening" hidden>
+        <div class="op-fade" id="opFade"></div>
+        <div class="op-bar top"></div>
+        <div class="op-bar bottom"></div>
+        <p class="op-caption" id="opCaption"></p>
+        <div class="op-credit" id="opCredit"></div>
+        <div class="op-title" id="opTitle" hidden>
+          <h2 id="opTitleName">동암초 탈출</h2>
+          <p class="op-sub">— 할로윈 밤, 학교라는 이름의 미로 —</p>
+          <p class="op-motto" id="opMotto"></p>
+        </div>
+        <button class="op-skip" id="opSkip" type="button">건너뛰기 ▶▶</button>
+      </div>
+
       <section class="overlay" id="titleScreen" hidden>
         <div class="panel">
-          <p class="eyebrow">함께 하기 · 3D 모둠 방탈출 · 버전 14</p>
+          <p class="eyebrow">함께 하기 · 3D 모둠 방탈출 · 버전 15</p>
           <h2 class="big-title" id="titleName">동암초 탈출</h2>
           <p class="story" id="titleStory"></p>
           <form class="team-form" id="teamForm" autocomplete="off">
@@ -376,13 +412,13 @@
   </main>
 </div>
 
-<script src="../../assets/common.js?v=14"></script>
-<script src="../../assets/vendor/three.min.js?v=14"></script>
-<script src="core.js?v=14"></script>
-<script src="map.js?v=14"></script>
-<script src="tex.js?v=14"></script>
-<script src="world.js?v=14"></script>
-<script src="rooms.js?v=14"></script>
-<script src="game.js?v=14"></script>
+<script src="../../assets/common.js?v=15"></script>
+<script src="../../assets/vendor/three.min.js?v=15"></script>
+<script src="core.js?v=15"></script>
+<script src="map.js?v=15"></script>
+<script src="tex.js?v=15"></script>
+<script src="world.js?v=15"></script>
+<script src="rooms.js?v=15"></script>
+<script src="game.js?v=15"></script>
 </body>
 </html>

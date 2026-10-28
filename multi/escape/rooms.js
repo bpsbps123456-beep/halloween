@@ -67,14 +67,15 @@
   }
 
   /** 나가는 문: 수수께끼를 풀면 열리고 빛나요 */
-  function exitDoor(L, door, dx) {
-    L.tag(door, { action: 'exit', label: '🚪 복도로 나가기', reach: 2.4 });
+  function exitDoor(L, door, dx, label) {
+    const text = label || '🚪 복도로 나가기';
+    L.tag(door, { action: 'exit', label: text, reach: 2.4 });
     const glow = new T.Mesh(new T.PlaneGeometry(1.1, 2.2), new T.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
     L.own(glow.material);
     glow.position.set(dx, 1.1, 0.03);
     L.scene.add(glow);
     // 문이 옆으로 열리면 문짝이 없어도 문 자리(빛나는 곳)를 누르면 나가요
-    L.tag(glow, { action: 'exit', label: '🚪 복도로 나가기', reach: 2.4 });
+    L.tag(glow, { action: 'exit', label: text, reach: 2.4 });
     L.exitAt = { x: dx };
     let open = 0;
     let opening = false;
@@ -105,6 +106,7 @@
       light.position.y = g.position.y;
     });
     L.ghost = g;
+    L.ghostLight = light;
     return g;
   }
 
@@ -977,8 +979,103 @@
     return L;
   };
 
+  /* ================ 신관 1층 현관: 잠겼어요! (본관으로 돌아가야 해요) ================ */
+  R.lobby = function (run) {
+    W3.setupMaterials();
+    const L = new W3.Level('room');
+    L.room = 'lobby';
+    const kit = new W3.Kit();
+    const Wd = 9;
+    const D = 6.5;
+    const { doors } = shell(L, kit, { W: Wd, D, doors: [Wd / 2], floor: M.hallFloor, wall: M.wall, windows: false, farHoles: [{ a: Wd / 2 - 1.5, b: Wd / 2 + 1.5, y0: 0, y1: 2.45 }] });
+    exitDoor(L, doors[0], Wd / 2, '🪜 계단으로 (3층 연결통로)');
+    // 유리문 너머: 셔터가 내려와 있어요 (아래 틈으로 달빛만)
+    const yard = glowMat('yard', () => X.yard(), { tint: 0x8890b8 });
+    kit.panel(3.2, 2.5, Wd / 2, 1.25, D + 0.7, Math.PI, yard);
+    const slat = lam(0x6d717a);
+    const slat2 = lam(0x585c64);
+    for (let y = 0.42; y < 2.5; y += 0.14) kit.box(3.1, 0.12, 0.04, Wd / 2, y, D + 0.35, Math.round(y / 0.14) % 2 ? slat : slat2);
+    kit.box(3.3, 0.3, 0.3, Wd / 2, 2.55, D + 0.35, M.darkMetal); // 셔터 통
+    kit.flat(3.0, 0.5, Wd / 2, 0.012, D - 0.3, M.moonPatch);
+    // 유리문 두 짝과 쇠사슬
+    [-1, 1].forEach((side) => {
+      const cx = Wd / 2 + side * 0.75;
+      kit.panel(1.46, 2.36, cx, 1.2, D - 0.04, Math.PI, M.glass);
+      kit.box(1.5, 0.08, 0.08, cx, 2.4, D - 0.04, M.frameDark);
+      kit.box(1.5, 0.12, 0.08, cx, 0.06, D - 0.04, M.frameDark);
+      kit.box(0.08, 2.4, 0.08, Wd / 2 + side * 1.5, 1.2, D - 0.04, M.frameDark);
+      kit.box(0.08, 2.4, 0.08, Wd / 2 + side * 0.04, 1.2, D - 0.04, M.frameDark);
+      kit.box(0.04, 0.5, 0.06, Wd / 2 + side * 0.15, 1.1, D - 0.1, M.metal);
+    });
+    const lockGrp = new T.Group();
+    const chainM = lam(0x9a9aa2);
+    for (let i = 0; i < 13; i++) {
+      const link = new T.Mesh(new T.TorusGeometry(0.05, 0.014, 6, 10), chainM);
+      link.position.set(-0.5 + i * 0.083, Math.sin((i / 12) * Math.PI) * -0.1, 0);
+      link.rotation.y = i % 2 ? Math.PI / 2 : 0;
+      lockGrp.add(link);
+    }
+    const body = new T.Mesh(new T.BoxGeometry(0.24, 0.22, 0.09), lam(0x8a8f99));
+    body.position.set(0, -0.22, 0.02);
+    lockGrp.add(body);
+    lockGrp.position.set(Wd / 2, 1.15, D - 0.14);
+    L.scene.add(lockGrp);
+    L.tag(lockGrp, { action: 'blocked', label: '🚪 현관문 열어 보기', reach: 2.8 });
+    L.collide(Wd / 2 - 1.6, D - 0.5, Wd / 2 + 1.6, D);
+    // 출입 금지 테이프와 유령의 쪽지
+    const tape = tmat('tapeKeepOut', () => X.label('출입 금지  ✖  출입 금지', '#ffd23f', '#1b1b1b'), { clamp: true });
+    kit.add(W3.rect(3.4, 0.22, 0, 0, 1, 1), tape, Wd / 2, 1.5, D - 0.2, Math.PI, 0, 0.42);
+    kit.add(W3.rect(3.4, 0.22, 0, 0, 1, 1), tape, Wd / 2, 1.5, D - 0.21, Math.PI, 0, -0.42);
+    const note = tmat('booNote', () => X.booNote(['신관 현관은', '내가 잠갔지롱!', '진짜 출구는', '본관 중앙 현관', '- 유령 부 👻'], 7), { clamp: true });
+    const nm = new T.Mesh(W3.rect(0.42, 0.56, 0, 0, 1, 1), note);
+    nm.position.set(Wd / 2 + 0.85, 1.65, D - 0.22);
+    nm.rotation.y = Math.PI;
+    nm.rotation.z = 0.08;
+    L.scene.add(nm);
+    L.tag(nm, { action: 'note', label: '📝 쪽지 읽기', reach: 2.8 });
+    // 현판·신발장 (우리 반 이름표)
+    kit.panel(2.6, 0.62, Wd / 2, 2.75, D - 0.05, Math.PI, tmat('plaque-sin-' + run.school, () => X.plaque(run.school + ' 신관'), { clamp: true }));
+    const friends = run.friends || [];
+    const left = Array(36).fill(null).concat(friends.map((n) => n));
+    [0.3, Wd - 0.3].forEach((x, i) => {
+      kit.block(0.6, 1.5, 4.5, x, 0, 3.0, lam(0x7a5a3a));
+      const tex = i === 0 && friends.length ? L.own(new T.MeshLambertMaterial({ map: L.own(texFrom(X.shoeLockers(83, left, 18))) })) : tmat('shoes18-' + i, () => X.shoeLockers(84 + i, null, 18), {});
+      kit.panel(4.5, 1.5, x + (i ? -0.31 : 0.31), 0.75, 3.0, i ? -Math.PI / 2 : Math.PI / 2, tex);
+      L.collide(i ? x - 0.3 : 0, 0.7, i ? Wd : x + 0.3, 5.3);
+    });
+    if (friends.length) {
+      const tag = tmat('shoeTag-' + run.myClass, () => X.label(run.myClass + ' 신발장', 'rgba(255,209,102,0.95)'), { clamp: true });
+      kit.panel(1.2, 0.3, 0.62, 1.68, 3.0, Math.PI / 2, tag);
+    }
+    // 비상구 불빛과 화분, 우산꽂이
+    kit.panel(0.6, 0.3, Wd / 2, 2.45, 0.02, 0, M.exitSign);
+    W3.plant(kit, 1.2, D - 0.5);
+    kit.cyl(0.18, 0.16, 0.55, Wd - 1.2, 0.28, D - 0.5, M.metal, 12);
+    kit.build(L.scene);
+    candleLight(L, Wd / 2, 2.0, D - 1.0, 0xa8b8ff, 1.0);
+    // 유령 부: 처음엔 숨어 있다가 문을 흔들면 나타나요
+    const boo = ghost(L, Wd / 2 - 1.9, 1.9, D - 1.4);
+    boo.visible = false;
+    L.ghostLight.visible = false;
+    L.showGhost = () => {
+      boo.visible = true;
+      L.ghostLight.visible = true;
+    };
+    // 문을 흔들면 덜컹덜컹
+    let shake = 0;
+    L.rattle = () => (shake = 0.6);
+    L.updaters.push((dt, t) => {
+      if (shake > 0) shake = Math.max(0, shake - dt);
+      lockGrp.position.x = Wd / 2 + Math.sin(t * 60) * shake * 0.05;
+      lockGrp.rotation.z = Math.sin(t * 45) * shake * 0.25;
+    });
+    return L;
+  };
+
   /* ================ 운동장 (탈출 성공!) ================ */
-  R.outside = function (run) {
+  /** opts.opening: 오프닝 장면 (불꽃놀이 없이, 교문이 철컹 닫혀요) */
+  R.outside = function (run, opts) {
+    const opening = !!(opts && opts.opening);
     W3.setupMaterials();
     const L = new W3.Level('outside');
     L.scene.background = new T.Color(0x070a1c);
@@ -1003,7 +1100,48 @@
     kit.box(7.3, 0.12, 0.12, 0, 2.44, -30, M.white);
     kit.box(0.12, 2.44, 0.12, -3.6, 1.22, -30, M.white);
     kit.box(0.12, 2.44, 0.12, 3.6, 1.22, -30, M.white);
+    if (opening) {
+      // 교문과 담장, 학교 이름
+      const iron = lam(0x2a2e38);
+      const fence = lam(0x8a7e70);
+      [-1, 1].forEach((side) => {
+        kit.block(26, 0.8, 0.4, side * 16.6, 0, -14, fence);
+        for (let x = 4.2; x < 29.6; x += 0.5) kit.block(0.05, 1.2, 0.05, side * x, 0.8, -14, iron);
+        kit.box(25.4, 0.06, 0.08, side * 16.9, 1.95, -14, iron);
+        kit.block(0.7, 3.4, 0.7, side * 3.85, 0, -14, fence);
+      });
+      kit.box(8.4, 0.25, 0.4, 0, 3.5, -14, fence);
+      const plaque = tmat('plaque-' + run.school, () => X.plaque(run.school), { clamp: true });
+      kit.panel(5.2, 1.3, 0, 4.3, -14.21, Math.PI, plaque);
+      kit.panel(5.2, 1.3, 0, 4.3, -13.79, 0, plaque);
+      kit.box(5.4, 1.4, 0.36, 0, 4.3, -14, lam(0x3a2414));
+      kit.panel(12, 2.6, 0, 10.2, 5.94, Math.PI, plaque);
+      // 6-3 교실 창문 하나만 희미하게 (2층)
+      kit.box(1.4, 1.2, 0.05, -11, 5.4, 5.95, L.own(new T.MeshBasicMaterial({ color: 0x8fa8ff })));
+    }
     kit.build(L.scene);
+    if (opening) {
+      // 미닫이 교문: 처음엔 옆으로 열려 있다가 철컹 닫혀요
+      const gate = new T.Group();
+      const iron = lam(0x2a2e38);
+      for (let i = 0; i <= 14; i++) {
+        const bar = new T.Mesh(new T.BoxGeometry(0.06, 1.9, 0.06), iron);
+        bar.position.set(-3.5 + i * 0.5, 1.0, 0);
+        gate.add(bar);
+      }
+      [0.15, 1.0, 1.9].forEach((y) => {
+        const rail = new T.Mesh(new T.BoxGeometry(7.2, 0.08, 0.08), iron);
+        rail.position.set(0, y, 0);
+        gate.add(rail);
+      });
+      gate.position.set(7.6, 0, -14.3);
+      L.scene.add(gate);
+      let closing = false;
+      L.closeGate = () => (closing = true);
+      L.updaters.push((dt) => {
+        if (closing && gate.position.x > 0) gate.position.x = Math.max(0, gate.position.x - dt * 24);
+      });
+    }
     const moon = W3.sprite('moon', () => X.glow('rgba(255,243,207,1)'), 14, 14);
     moon.position.set(18, 26, -60);
     L.scene.add(moon);
@@ -1029,78 +1167,80 @@
     }
     starGeo.setAttribute('position', new T.Float32BufferAttribute(sp, 3));
     L.scene.add(new T.Points(starGeo, L.own(new T.PointsMaterial({ color: 0xfff8e0, size: 0.35, fog: false }))));
-    // 불꽃놀이
-    const MAX = 1800;
-    const pos = new Float32Array(MAX * 3);
-    const col = new Float32Array(MAX * 3);
-    const vel = new Float32Array(MAX * 3);
-    const life = new Float32Array(MAX);
-    const geo = new T.BufferGeometry();
-    geo.setAttribute('position', new T.BufferAttribute(pos, 3));
-    geo.setAttribute('color', new T.BufferAttribute(col, 3));
-    const pm = L.own(new T.PointsMaterial({ size: 0.45, vertexColors: true, transparent: true, blending: T.AdditiveBlending, depthWrite: false, fog: false, map: W3.tex('spark', () => X.glow('rgba(255,255,255,1)'), { clamp: true }) }));
-    const points = new T.Points(geo, pm);
-    points.frustumCulled = false;
-    L.scene.add(points);
-    let next = 0;
-    let cursor = 0;
-    const palette = [0xff8a1f, 0xffd166, 0x9ff0d8, 0xff6fae, 0xb48cff, 0x7ad7ff].map((h) => new T.Color(h));
-    function burst() {
-      const cx = -14 + Math.random() * 28;
-      const cy = 12 + Math.random() * 10;
-      const cz = -28 - Math.random() * 14;
-      const c = palette[Math.floor(Math.random() * palette.length)];
-      for (let i = 0; i < 120; i++) {
-        const k = cursor;
-        cursor = (cursor + 1) % MAX;
-        const u = Math.random() * 2 - 1;
-        const a = Math.random() * TAU;
-        const s = Math.sqrt(1 - u * u);
-        const v = 5 + Math.random() * 2.5;
-        pos[k * 3] = cx;
-        pos[k * 3 + 1] = cy;
-        pos[k * 3 + 2] = cz;
-        vel[k * 3] = s * Math.cos(a) * v;
-        vel[k * 3 + 1] = u * v;
-        vel[k * 3 + 2] = s * Math.sin(a) * v;
-        life[k] = 1.6 + Math.random() * 0.6;
-        col[k * 3] = c.r;
-        col[k * 3 + 1] = c.g;
-        col[k * 3 + 2] = c.b;
-      }
-      if (L.onBurst) L.onBurst();
-    }
-    L.updaters.push((dt) => {
-      next -= dt;
-      if (next <= 0) {
-        burst();
-        next = 0.5 + Math.random() * 0.7;
-      }
-      for (let k = 0; k < MAX; k++) {
-        if (life[k] <= 0) continue;
-        life[k] -= dt;
-        vel[k * 3 + 1] -= 3.2 * dt;
-        vel[k * 3] *= 0.985;
-        vel[k * 3 + 1] *= 0.985;
-        vel[k * 3 + 2] *= 0.985;
-        pos[k * 3] += vel[k * 3] * dt;
-        pos[k * 3 + 1] += vel[k * 3 + 1] * dt;
-        pos[k * 3 + 2] += vel[k * 3 + 2] * dt;
-        const f = Math.max(0, Math.min(1, life[k]));
-        col[k * 3] *= 0.995;
-        col[k * 3 + 1] *= 0.995;
-        col[k * 3 + 2] *= 0.995;
-        if (life[k] <= 0) pos[k * 3 + 1] = -100;
-        else if (f < 0.3) {
-          col[k * 3] *= 0.92;
-          col[k * 3 + 1] *= 0.92;
-          col[k * 3 + 2] *= 0.92;
+    // 불꽃놀이 (탈출 성공 장면만)
+    if (!opening) {
+      const MAX = 1800;
+      const pos = new Float32Array(MAX * 3);
+      const col = new Float32Array(MAX * 3);
+      const vel = new Float32Array(MAX * 3);
+      const life = new Float32Array(MAX);
+      const geo = new T.BufferGeometry();
+      geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new T.BufferAttribute(col, 3));
+      const pm = L.own(new T.PointsMaterial({ size: 0.45, vertexColors: true, transparent: true, blending: T.AdditiveBlending, depthWrite: false, fog: false, map: W3.tex('spark', () => X.glow('rgba(255,255,255,1)'), { clamp: true }) }));
+      const points = new T.Points(geo, pm);
+      points.frustumCulled = false;
+      L.scene.add(points);
+      let next = 0;
+      let cursor = 0;
+      const palette = [0xff8a1f, 0xffd166, 0x9ff0d8, 0xff6fae, 0xb48cff, 0x7ad7ff].map((h) => new T.Color(h));
+      function burst() {
+        const cx = -14 + Math.random() * 28;
+        const cy = 12 + Math.random() * 10;
+        const cz = -28 - Math.random() * 14;
+        const c = palette[Math.floor(Math.random() * palette.length)];
+        for (let i = 0; i < 120; i++) {
+          const k = cursor;
+          cursor = (cursor + 1) % MAX;
+          const u = Math.random() * 2 - 1;
+          const a = Math.random() * TAU;
+          const s = Math.sqrt(1 - u * u);
+          const v = 5 + Math.random() * 2.5;
+          pos[k * 3] = cx;
+          pos[k * 3 + 1] = cy;
+          pos[k * 3 + 2] = cz;
+          vel[k * 3] = s * Math.cos(a) * v;
+          vel[k * 3 + 1] = u * v;
+          vel[k * 3 + 2] = s * Math.sin(a) * v;
+          life[k] = 1.6 + Math.random() * 0.6;
+          col[k * 3] = c.r;
+          col[k * 3 + 1] = c.g;
+          col[k * 3 + 2] = c.b;
         }
+        if (L.onBurst) L.onBurst();
       }
-      geo.attributes.position.needsUpdate = true;
-      geo.attributes.color.needsUpdate = true;
-    });
-    for (let k = 0; k < MAX; k++) pos[k * 3 + 1] = -100;
+      L.updaters.push((dt) => {
+        next -= dt;
+        if (next <= 0) {
+          burst();
+          next = 0.5 + Math.random() * 0.7;
+        }
+        for (let k = 0; k < MAX; k++) {
+          if (life[k] <= 0) continue;
+          life[k] -= dt;
+          vel[k * 3 + 1] -= 3.2 * dt;
+          vel[k * 3] *= 0.985;
+          vel[k * 3 + 1] *= 0.985;
+          vel[k * 3 + 2] *= 0.985;
+          pos[k * 3] += vel[k * 3] * dt;
+          pos[k * 3 + 1] += vel[k * 3 + 1] * dt;
+          pos[k * 3 + 2] += vel[k * 3 + 2] * dt;
+          const f = Math.max(0, Math.min(1, life[k]));
+          col[k * 3] *= 0.995;
+          col[k * 3 + 1] *= 0.995;
+          col[k * 3 + 2] *= 0.995;
+          if (life[k] <= 0) pos[k * 3 + 1] = -100;
+          else if (f < 0.3) {
+            col[k * 3] *= 0.92;
+            col[k * 3 + 1] *= 0.92;
+            col[k * 3 + 2] *= 0.92;
+          }
+        }
+        geo.attributes.position.needsUpdate = true;
+        geo.attributes.color.needsUpdate = true;
+      });
+      for (let k = 0; k < MAX; k++) pos[k * 3 + 1] = -100;
+    }
     L.spawn = { x: 0, z: 2, yaw: 0, pitch: 0.28 };
     L.bounds = { x0: -50, x1: 50, z0: -50, z1: 5 };
     return L;

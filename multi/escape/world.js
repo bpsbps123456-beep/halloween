@@ -678,6 +678,33 @@
     kit.panel(1.4, 0.98, posterX, 1.55, -HW + 0.02, 0, evacM);
     kit.box(1.48, 1.06, 0.02, posterX, 1.55, -HW + 0.005, M.frameDark);
 
+    // 우리 반 친구 이름 종이 (창문 사이 벽): 상장·생일 축하·칭찬왕·분실물·그림·독서왕
+    const friends = run.friends && run.friends.length ? run.friends : ['유령 부', '호박 군', '박쥐 양', '거미 씨'];
+    const pr = X.rand(hall.def.id.charCodeAt(1) * 977 + (run.seed % 997));
+    const lockerXs = hall.spots.filter((sp) => sp.kind === 'locker').map((sp) => sp.x);
+    const lo = Math.min(hall.startX, hall.goalX) - 1;
+    const hi = Math.max(hall.startX, hall.goalX) + 1;
+    const gaps = [];
+    for (let x = 3.2; x < len - 1; x += 3) {
+      if (x < lo || x > hi || Math.abs(x - posterX) < 1.4 || lockerXs.some((lx) => Math.abs(lx - x) < 0.9)) continue;
+      gaps.push(x);
+    }
+    const kinds = ['award', 'birthday', 'praise', 'lost', 'drawing', 'reading'];
+    const want = Math.min(4, gaps.length);
+    const used = new Set();
+    for (let i = 0; i < want; i++) {
+      const x = gaps[Math.floor(((i + 0.5) * gaps.length) / want)];
+      let name = friends[Math.floor(pr() * friends.length)];
+      for (let k = 0; k < 5 && used.has(name); k++) name = friends[Math.floor(pr() * friends.length)];
+      used.add(name);
+      const kind = kinds[Math.floor(pr() * kinds.length)];
+      const seed = Math.floor(pr() * 1000);
+      const npm = tmat('np-' + kind + '-' + name + '-' + seed, () => X.namePoster(kind, name, seed), { clamp: true });
+      kit.panel(0.54, 0.72, x, 1.62, -HW + 0.015, 0, npm);
+      kit.box(0.14, 0.04, 0.005, x - 0.18, 1.97, -HW + 0.02, lam(0xf2efd8)); // 테이프
+      kit.box(0.14, 0.04, 0.005, x + 0.18, 1.97, -HW + 0.02, lam(0xf2efd8));
+    }
+
     // 비상구 표지 (계단 위)
     hall.cells.forEach((c) => {
       if (c.kind !== 'stairs') return;
@@ -768,7 +795,10 @@
     // 옆벽: 앞쪽(x0)에 칠판
     wallRun(kit, { axis: 'z', fixed: x0, from: HW, to: zb, face: 1, material: M.wallClass });
     wallRun(kit, { axis: 'z', fixed: x1, from: HW, to: zb, face: -1, material: M.wallClass });
-    const bm = tmat('roomBoard', () => X.roomBoard(), { clamp: true });
+    // 칠판: 오늘의 주번은 우리 반 친구 두 명
+    const fr = run.friends || [];
+    const duty = fr.length >= 2 ? [fr[(c.index * 5) % fr.length], fr[(c.index * 5 + 7) % fr.length]].filter((n, i, a) => a.indexOf(n) === i) : [];
+    const bm = tmat('roomBoard-' + duty.join(','), () => X.roomBoard(duty), { clamp: true });
     kit.box(0.05, 1.26, 3.66, x0 + 0.03, 1.55, zc, M.darkWood);
     kit.panel(3.6, 1.2, x0 + 0.065, 1.55, zc, Math.PI / 2, bm);
     kit.box(0.12, 0.04, 3.4, x0 + 0.08, 0.93, zc, M.darkWood); // 분필 받침
