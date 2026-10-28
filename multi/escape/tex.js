@@ -1287,15 +1287,16 @@
     return c;
   };
 
-  /** 신발장: names 를 주면 이름표에 우리 반 친구 이름 (cols 칸 × 6줄) */
-  X.shoeLockers = function (seed, names, cols, label) {
+  /** 신발장: names 를 주면 이름표에 우리 반 친구 이름 (cols 칸 × rows 줄, 기본 6줄) */
+  X.shoeLockers = function (seed, names, cols, label, rows) {
     const n = cols || 6;
-    const c = make(16 + n * 84, 512);
+    const m = rows || 6;
+    const c = make(16 + n * 84, 16 + m * 84);
     const g = c.getContext('2d');
     const r = rand(seed || 81);
     g.fillStyle = '#7a5a3a';
-    g.fillRect(0, 0, c.width, 512);
-    for (let y = 0; y < 6; y++)
+    g.fillRect(0, 0, c.width, c.height);
+    for (let y = 0; y < m; y++)
       for (let x = 0; x < n; x++) {
         const px = 8 + x * 84;
         const py = 8 + y * 84;

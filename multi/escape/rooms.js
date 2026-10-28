@@ -605,7 +605,7 @@
     kit.block(0.45, 0.32, 0.05, 7.2, 1.0, 1.35, M.black);
     kit.panel(0.42, 0.28, 7.2, 1.16, 1.32, Math.PI, glowMat('libScreen', () => X.screen(['도서 대출', '반납일 확인'])));
     L.collide(6.65, 0.9, 8.55, 1.6);
-    const quiet = tmat('quietSign', () => X.label('도서관에서는 조용히', '#2b6cb0', '#fff'), { clamp: true });
+    const quiet = tmat('quietSign', () => X.label('도서관에서는 조용히', '#2b6cb0', '#fff'), { clamp: true, mat: { alphaTest: 0.5 } });
     kit.panel(1.4, 0.35, 5.2, 2.55, 0.03, 0, quiet);
     // 십진분류 포스터 (누르면 크게)
     const kdcM = tmat('kdc', () => X.kdcPoster(), { clamp: true });
@@ -765,7 +765,7 @@
       chair(kit, x, z - 0.75, lam(0x2b2d36), -0.19);
       L.collide(x - 0.68, z - 0.4, x + 0.68, z + 0.4);
       // 자리 번호판과 이름표
-      const num = tmat('seatNum' + (seat + 1), () => X.label(seat + 1 + '번 자리', '#2b6cb0', '#fff'), { clamp: true });
+      const num = tmat('seatNum' + (seat + 1), () => X.label(seat + 1 + '번 자리', '#2b6cb0', '#fff'), { clamp: true, mat: { alphaTest: 0.5 } });
       kit.panel(0.6, 0.15, x, 0.6, z - 0.385, Math.PI, num);
       const card = new T.Mesh(new T.PlaneGeometry(0.42, 0.11), L.own(new T.MeshLambertMaterial({ color: 0xf7f3e6 })));
       card.position.set(x + 0.2, 0.82, z - 0.3);
@@ -951,11 +951,12 @@
     L.scene.add(lockGrp);
     L.tag(lockGrp, { action: 'lock', label: '🔒 현관 자물쇠', reach: 2.6 });
     L.collide(Wd / 2 - 1.6, D - 0.5, Wd / 2 + 1.6, D);
-    // 현판·신발장·트로피장·할로윈 포스터
+    // 현판·트로피 진열장·할로윈 포스터
     kit.panel(3.0, 0.75, Wd / 2, 2.72, D - 0.05, Math.PI, tmat('plaque-' + run.school, () => X.plaque(run.school), { clamp: true }));
     [0.3, Wd - 0.3].forEach((x, i) => {
       kit.block(0.6, 1.5, 4.5, x, 0, 3.3, lam(0x7a5a3a));
-      kit.panel(4.5, 1.5, x + (i ? -0.31 : 0.31), 0.75, 3.3, i ? -Math.PI / 2 : Math.PI / 2, tmat('shoes', () => X.shoeLockers(81)), [0, 0, 3, 1]);
+      // 트로피·작품 진열장 (신발장은 교실 앞 복도에 있어요)
+      kit.panel(4.5, 1.5, x + (i ? -0.31 : 0.31), 0.75, 3.3, i ? -Math.PI / 2 : Math.PI / 2, tmat('trophiesTile', () => X.trophies()), [0, 0, 3, 1]);
       L.collide(i ? x - 0.3 : 0, 1.0, i ? Wd : x + 0.3, 5.6);
     });
     kit.panel(1.2, 1.2, 1.6, 1.4, D - 0.05, Math.PI, tmat('trophies', () => X.trophies(), { clamp: true }));
@@ -1023,7 +1024,7 @@
     L.tag(lockGrp, { action: 'blocked', label: '🚪 현관문 열어 보기', reach: 2.8 });
     L.collide(Wd / 2 - 1.6, D - 0.5, Wd / 2 + 1.6, D);
     // 출입 금지 테이프와 유령의 쪽지
-    const tape = tmat('tapeKeepOut', () => X.label('출입 금지  ✖  출입 금지', '#ffd23f', '#1b1b1b'), { clamp: true });
+    const tape = tmat('tapeKeepOut', () => X.label('출입 금지  ✖  출입 금지', '#ffd23f', '#1b1b1b'), { clamp: true, mat: { alphaTest: 0.5 } });
     kit.add(W3.rect(3.4, 0.22, 0, 0, 1, 1), tape, Wd / 2, 1.5, D - 0.2, Math.PI, 0, 0.42);
     kit.add(W3.rect(3.4, 0.22, 0, 0, 1, 1), tape, Wd / 2, 1.5, D - 0.21, Math.PI, 0, -0.42);
     const note = tmat('booNote', () => X.booNote(['신관 현관은', '내가 잠갔지롱!', '진짜 출구는', '본관 중앙 현관', '- 유령 부 👻'], 7), { clamp: true });
@@ -1033,20 +1034,14 @@
     nm.rotation.z = 0.08;
     L.scene.add(nm);
     L.tag(nm, { action: 'note', label: '📝 쪽지 읽기', reach: 2.8 });
-    // 현판·신발장 (우리 반 이름표)
+    // 현판, 트로피 진열장, 학교 소식 게시판, 긴 의자 (신발장은 교실 앞 복도에 있어요)
     kit.panel(2.6, 0.62, Wd / 2, 2.75, D - 0.05, Math.PI, tmat('plaque-sin-' + run.school, () => X.plaque(run.school + ' 신관'), { clamp: true }));
-    const friends = run.friends || [];
-    const left = Array(36).fill(null).concat(friends.map((n) => n));
-    [0.3, Wd - 0.3].forEach((x, i) => {
-      kit.block(0.6, 1.5, 4.5, x, 0, 3.0, lam(0x7a5a3a));
-      const tex = i === 0 && friends.length ? L.own(new T.MeshLambertMaterial({ map: L.own(texFrom(X.shoeLockers(83, left, 18))) })) : tmat('shoes18-' + i, () => X.shoeLockers(84 + i, null, 18), {});
-      kit.panel(4.5, 1.5, x + (i ? -0.31 : 0.31), 0.75, 3.0, i ? -Math.PI / 2 : Math.PI / 2, tex);
-      L.collide(i ? x - 0.3 : 0, 0.7, i ? Wd : x + 0.3, 5.3);
-    });
-    if (friends.length) {
-      const tag = tmat('shoeTag-' + run.myClass, () => X.label(run.myClass + ' 신발장', 'rgba(255,209,102,0.95)'), { clamp: true });
-      kit.panel(1.2, 0.3, 0.62, 1.68, 3.0, Math.PI / 2, tag);
-    }
+    kit.block(0.55, 1.8, 3.6, 0.3, 0, 3.0, lam(0x6a4a2e));
+    kit.panel(3.6, 1.6, 0.585, 0.95, 3.0, Math.PI / 2, tmat('trophiesTile', () => X.trophies()), [0, 0, 2, 1]);
+    L.collide(0, 1.2, 0.6, 4.8);
+    kit.panel(3.0, 1.3, Wd - 0.03, 1.55, 3.0, -Math.PI / 2, tmat('bulletin-lobby', () => X.bulletin(77, '학교 소식'), { clamp: true }));
+    kit.block(2.4, 0.42, 0.45, Wd - 0.35, 0, 3.0, lam(0x8a6a4a), Math.PI / 2);
+    L.collide(Wd - 0.6, 1.8, Wd, 4.2);
     // 비상구 불빛과 화분, 우산꽂이
     kit.panel(0.6, 0.3, Wd / 2, 2.45, 0.02, 0, M.exitSign);
     W3.plant(kit, 1.2, D - 0.5);

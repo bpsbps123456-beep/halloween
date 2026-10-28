@@ -640,8 +640,12 @@
 
     // 창문 쪽 벽 (z = -1.5): 아래 벽 + 큰 창 + 위 벽
     const winHoles = [];
-    for (let x = 0.6; x + 2.2 <= len - 0.4; x += 3) winHoles.push({ a: x, b: x + 2.2, y0: 0.95, y1: 2.55 });
-    wallRun(kit, { axis: 'x', fixed: -HW, from: 0, to: len, face: 1, material: wallM, holes: winHoles });
+    const bx = hall.bridgeX;
+    const onBridge = (a, b) => bx != null && b > bx - 1.5 && a < bx + 1.5;
+    for (let x = 0.6; x + 2.2 <= len - 0.4; x += 3) if (!onBridge(x, x + 2.2)) winHoles.push({ a: x, b: x + 2.2, y0: 0.95, y1: 2.55 });
+    const bridgeHole = bx != null ? [{ a: bx - 1.1, b: bx + 1.1, y0: 0, y1: 2.4 }] : [];
+    wallRun(kit, { axis: 'x', fixed: -HW, from: 0, to: len, face: 1, material: wallM, holes: winHoles.concat(bridgeHole) });
+    if (bx != null) buildBridge(L, kit, bx, hall, wallM);
     winHoles.forEach((hl, i) => {
       windowFrame(kit, { axis: 'x', fixed: -HW, a: hl.a, b: hl.b, y0: hl.y0, y1: hl.y1, face: 1, glass: i % 4 === 1 ? M.nightMoon : M.night, bars: 2, uv: [i * 0.37, 0, i * 0.37 + 0.9, 1] });
       // 창 밑 라디에이터
@@ -682,15 +686,13 @@
     const friends = run.friends && run.friends.length ? run.friends : ['유령 부', '호박 군', '박쥐 양', '거미 씨'];
     const pr = X.rand(hall.def.id.charCodeAt(1) * 977 + (run.seed % 997));
     const lockerXs = hall.spots.filter((sp) => sp.kind === 'locker').map((sp) => sp.x);
-    const lo = Math.min(hall.startX, hall.goalX) - 1;
-    const hi = Math.max(hall.startX, hall.goalX) + 1;
     const gaps = [];
     for (let x = 3.2; x < len - 1; x += 3) {
-      if (x < lo || x > hi || Math.abs(x - posterX) < 1.4 || lockerXs.some((lx) => Math.abs(lx - x) < 0.9)) continue;
+      if (Math.abs(x - posterX) < 1.4 || lockerXs.some((lx) => Math.abs(lx - x) < 0.9) || (bx != null && Math.abs(x - bx) < 1.8)) continue;
       gaps.push(x);
     }
     const kinds = ['award', 'birthday', 'praise', 'lost', 'drawing', 'reading'];
-    const want = Math.min(4, gaps.length);
+    const want = Math.min(Math.max(4, Math.round(len / 14)), gaps.length);
     const used = new Set();
     for (let i = 0; i < want; i++) {
       const x = gaps[Math.floor(((i + 0.5) * gaps.length) / want)];
@@ -737,7 +739,8 @@
       frame.add(m);
     });
     L.scene.add(frame);
-    const goalLabel = sprite('goal-' + goalCell.name, () => X.label('▼ ' + goalCell.name), 1.6, 0.4, { depthTest: false });
+    const goalText = hall.def.goalLabel || goalCell.name;
+    const goalLabel = sprite('goal-' + goalText, () => X.label('▼ ' + goalText), 1.6, 0.4, { depthTest: false });
     goalLabel.position.set(fx, 2.55, HW - 0.4);
     L.scene.add(goalLabel);
     const goalLight = new T.PointLight(0xffc860, 4, 4, 1.5);
@@ -792,44 +795,213 @@
     for (let x = x0 + 0.7; x + 2.0 <= x1 - 0.5; x += 2.6) win.push({ a: x, b: x + 2.0, y0: 0.95, y1: 2.5 });
     wallRun(kit, { axis: 'x', fixed: zb, from: x0, to: x1, face: -1, material: M.wallClass, holes: win });
     win.forEach((hl, i) => windowFrame(kit, { axis: 'x', fixed: zb, a: hl.a, b: hl.b, y0: hl.y0, y1: hl.y1, face: -1, glass: i % 3 === 1 ? M.nightMoon : M.night, bars: 2, uv: [i * 0.41, 0, i * 0.41 + 0.85, 1] }));
-    // 옆벽: 앞쪽(x0)에 칠판
+    // 옆벽
     wallRun(kit, { axis: 'z', fixed: x0, from: HW, to: zb, face: 1, material: M.wallClass });
     wallRun(kit, { axis: 'z', fixed: x1, from: HW, to: zb, face: -1, material: M.wallClass });
-    // 칠판: 오늘의 주번은 우리 반 친구 두 명
-    const fr = run.friends || [];
-    const duty = fr.length >= 2 ? [fr[(c.index * 5) % fr.length], fr[(c.index * 5 + 7) % fr.length]].filter((n, i, a) => a.indexOf(n) === i) : [];
-    const bm = tmat('roomBoard-' + duty.join(','), () => X.roomBoard(duty), { clamp: true });
-    kit.box(0.05, 1.26, 3.66, x0 + 0.03, 1.55, zc, M.darkWood);
-    kit.panel(3.6, 1.2, x0 + 0.065, 1.55, zc, Math.PI / 2, bm);
-    kit.box(0.12, 0.04, 3.4, x0 + 0.08, 0.93, zc, M.darkWood); // 분필 받침
-    kit.block(0.55, 1.0, 0.9, x0 + 0.62, 0, zc, M.deskWood); // 교탁
-    kit.box(0.6, 0.04, 0.95, x0 + 0.62, 1.02, zc, M.deskTop);
-    // 뒤로 밀어 둔 책상과 책상 위에 거꾸로 올린 의자
-    const dz0 = E.ROOM_Z1 + 0.6;
-    for (let row = 0; row < 3; row++) {
-      const z = dz0 + row * 0.62;
-      if (z > zb - 0.3) break;
-      for (let x = x0 + 1.0; x <= x1 - 0.9; x += 0.78) {
-        const jx = x + ((row * 7 + Math.round(x * 3)) % 3) * 0.04;
-        kit.block(0.6, 0.04, 0.45, jx, 0.68, z, M.deskTop);
-        kit.block(0.56, 0.3, 0.03, jx, 0.38, z - 0.2, M.deskWood);
-        kit.block(0.03, 0.68, 0.03, jx - 0.27, 0, z - 0.19, M.darkMetal);
-        kit.block(0.03, 0.68, 0.03, jx + 0.27, 0, z - 0.19, M.darkMetal);
-        kit.block(0.03, 0.68, 0.03, jx - 0.27, 0, z + 0.19, M.darkMetal);
-        kit.block(0.03, 0.68, 0.03, jx + 0.27, 0, z + 0.19, M.darkMetal);
-        const chair = (row + Math.round(x)) % 2 ? M.chairBlue : M.chairGreen;
-        kit.block(0.38, 0.04, 0.36, jx, 0.72, z, chair);
-        kit.block(0.38, 0.3, 0.03, jx, 0.76, z + 0.17, chair);
-        kit.block(0.025, 0.38, 0.025, jx - 0.17, 0.76, z - 0.15, M.darkMetal);
-        kit.block(0.025, 0.38, 0.025, jx + 0.17, 0.76, z - 0.15, M.darkMetal);
-      }
-    }
-    // 할로윈 장식: 교탁 위 호박, 구석 거미줄
-    const pk = pumpkin(0.13);
-    pk.position.set(x0 + 0.62, 1.04, zc - 0.25);
-    L.scene.add(pk);
+    // 실 종류에 맞게 꾸며요 (가구는 뒤쪽과 옆벽에만: 앞쪽은 걸어 다닐 수 있게 비워 둬요)
+    const G = { HW, HH, x0, x1, w, mid, zb, zc, back: E.ROOM_Z1 + 0.35 };
+    (FURNISH[c.type] || FURNISH.classroom)(kit, L, c, run, G);
+    // 할로윈 장식: 구석 거미줄
     kit.panel(0.9, 0.9, x1 - 0.5, HH - 0.45, zb - 0.02, Math.PI, M.cobweb);
     kit.panel(0.9, 0.9, x0 + 0.03, HH - 0.45, HW + 0.6, Math.PI / 2, M.cobweb);
+  }
+
+  const screenM = () => lam(0x18284a, { emissive: 0x0c1c3a });
+  function monitor(kit, x, y, z, face) {
+    kit.box(0.52, 0.34, 0.04, x, y + 0.27, z, M.black);
+    kit.box(0.46, 0.28, 0.01, x, y + 0.27, z - 0.025 * face, screenM());
+    kit.box(0.06, 0.12, 0.06, x, y + 0.06, z + 0.04 * face, M.darkMetal);
+  }
+  function officeChair(kit, x, z, color) {
+    const cm = lam(color);
+    kit.cyl(0.03, 0.03, 0.42, x, 0.21, z, M.darkMetal, 6);
+    kit.cyl(0.23, 0.23, 0.07, x, 0.46, z, cm, 12);
+    kit.box(0.42, 0.42, 0.06, x, 0.74, z - 0.22, cm);
+  }
+  function pumpkinAt(L, x, y, z, size) {
+    const pk = pumpkin(size || 0.13);
+    pk.position.set(x, y, z);
+    L.scene.add(pk);
+  }
+
+  /** 실 종류별 꾸미기: (kit, L, c, run, G) */
+  const FURNISH = {
+    /** 교실: 칠판, 교탁, 청소 시간처럼 뒤로 밀어 둔 책상 */
+    classroom(kit, L, c, run, G) {
+      const fr = run.friends || [];
+      const duty = fr.length >= 2 ? [fr[(c.index * 5) % fr.length], fr[(c.index * 5 + 7) % fr.length]].filter((n, i, a) => a.indexOf(n) === i) : [];
+      const bm = tmat('roomBoard-' + duty.join(','), () => X.roomBoard(duty), { clamp: true });
+      kit.box(0.05, 1.26, 3.66, G.x0 + 0.03, 1.55, G.zc, M.darkWood);
+      kit.panel(3.6, 1.2, G.x0 + 0.065, 1.55, G.zc, Math.PI / 2, bm);
+      kit.box(0.12, 0.04, 3.4, G.x0 + 0.08, 0.93, G.zc, M.darkWood); // 분필 받침
+      kit.block(0.55, 1.0, 0.9, G.x0 + 0.62, 0, G.zc, M.deskWood); // 교탁
+      kit.box(0.6, 0.04, 0.95, G.x0 + 0.62, 1.02, G.zc, M.deskTop);
+      const dz0 = E.ROOM_Z1 + 0.6;
+      for (let row = 0; row < 3; row++) {
+        const z = dz0 + row * 0.62;
+        if (z > G.zb - 0.3) break;
+        for (let x = G.x0 + 1.0; x <= G.x1 - 0.9; x += 0.78) {
+          const jx = x + ((row * 7 + Math.round(x * 3)) % 3) * 0.04;
+          kit.block(0.6, 0.04, 0.45, jx, 0.68, z, M.deskTop);
+          kit.block(0.56, 0.3, 0.03, jx, 0.38, z - 0.2, M.deskWood);
+          kit.block(0.03, 0.68, 0.03, jx - 0.27, 0, z - 0.19, M.darkMetal);
+          kit.block(0.03, 0.68, 0.03, jx + 0.27, 0, z - 0.19, M.darkMetal);
+          kit.block(0.03, 0.68, 0.03, jx - 0.27, 0, z + 0.19, M.darkMetal);
+          kit.block(0.03, 0.68, 0.03, jx + 0.27, 0, z + 0.19, M.darkMetal);
+          const chair = (row + Math.round(x)) % 2 ? M.chairBlue : M.chairGreen;
+          kit.block(0.38, 0.04, 0.36, jx, 0.72, z, chair);
+          kit.block(0.38, 0.3, 0.03, jx, 0.76, z + 0.17, chair);
+          kit.block(0.025, 0.38, 0.025, jx - 0.17, 0.76, z - 0.15, M.darkMetal);
+          kit.block(0.025, 0.38, 0.025, jx + 0.17, 0.76, z - 0.15, M.darkMetal);
+        }
+      }
+      pumpkinAt(L, G.x0 + 0.62, 1.04, G.zc - 0.25);
+    },
+    /** 연구실·교무실: 선생님 책상 두 줄, 모니터, 책장, 복사기, 정수기 */
+    teacher(kit, L, c, run, G) {
+      [G.back + 0.45, G.back + 1.5].forEach((z, r) => {
+        for (let x = G.x0 + 1.5; x <= G.x1 - 1.4; x += 1.35) {
+          kit.block(1.2, 0.04, 0.7, x, 0.72, z, M.deskTop);
+          kit.block(1.1, 0.7, 0.62, x, 0.02, z + 0.02, lam(0x8f949c));
+          monitor(kit, x, 0.76, z + 0.12, 1);
+          kit.box(0.3, 0.02, 0.22, x - 0.32, 0.75, z - 0.1, M.white); // 서류
+          if (r === 0) officeChair(kit, x, z - 0.6, 0x2a3a5a);
+        }
+      });
+      kit.block(0.36, 2.0, 3.2, G.x0 + 0.2, 0, G.zc, M.darkWood);
+      kit.panel(3.1, 1.9, G.x0 + 0.385, 1.0, G.zc, Math.PI / 2, tmat('books-' + (c.index % 3), () => X.books(70 + (c.index % 3))), [0, 0, 1.5, 2]);
+      kit.block(0.62, 1.0, 0.66, G.x1 - 0.45, 0, G.HW + 2.0, lam(0xd8d8d0)); // 복사기
+      kit.box(0.62, 0.06, 0.66, G.x1 - 0.45, 1.03, G.HW + 2.0, lam(0x3a3f48));
+      kit.block(0.36, 1.1, 0.36, G.x1 - 0.35, 0, G.HW + 3.3, lam(0xe8eef4)); // 정수기
+      kit.cyl(0.14, 0.14, 0.4, G.x1 - 0.35, 1.3, G.HW + 3.3, lam(0x7ab8e8), 12);
+      pumpkinAt(L, G.x0 + 1.5, 0.76, G.back + 0.3, 0.1);
+    },
+    /** 회의실·미래실·연수실: 긴 탁자와 의자, 큰 화면, 화이트보드 */
+    meeting(kit, L, c, run, G) {
+      const tz = G.back + 1.0;
+      const tw = G.w - 3.2;
+      kit.block(tw, 0.05, 1.3, G.mid, 0.72, tz, M.deskWood);
+      [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => kit.block(0.08, 0.72, 0.08, G.mid + sx * (tw / 2 - 0.2), 0, tz + sz * 0.5, M.darkMetal)));
+      for (let x = G.mid - tw / 2 + 0.5; x <= G.mid + tw / 2 - 0.4; x += 0.9) {
+        officeChair(kit, x, tz - 0.95, 0x5a3a6a);
+        kit.cyl(0.23, 0.23, 0.07, x, 0.46, tz + 0.95, lam(0x5a3a6a), 12);
+        kit.box(0.42, 0.42, 0.06, x, 0.74, tz + 1.17, lam(0x5a3a6a));
+      }
+      kit.box(0.08, 1.05, 1.9, G.x0 + 0.05, 1.6, G.zc, M.black);
+      kit.panel(1.8, 0.98, G.x0 + 0.095, 1.6, G.zc, Math.PI / 2, glowMat('meetScreen', () => X.screen(['회의 자료', '할로윈 파티 계획']), { tint: 0x8090b0 }));
+      kit.panel(2.4, 1.15, G.x1 - 0.03, 1.5, G.zc, -Math.PI / 2, lam(0xf2f2ee));
+      kit.box(0.04, 0.05, 2.4, G.x1 - 0.06, 0.92, G.zc, M.metal);
+      W3.plant(kit, G.x1 - 0.5, G.zb - 0.5);
+      pumpkinAt(L, G.mid, 0.75, tz, 0.12);
+    },
+    /** 과학 실험실·시약실: 실험대(검은 상판), 개수대, 비커, 약품장, 인체 모형 */
+    lab(kit, L, c, run, G) {
+      const colors = [0xff6b6b, 0x5ad18a, 0x6aa8ff, 0xffd166, 0xc77dff];
+      [G.back + 0.55, G.back + 1.6].forEach((z, r) => {
+        kit.block(G.w - 2.6, 0.86, 0.95, G.mid, 0, z, lam(0xe8e2d4));
+        kit.box(G.w - 2.5, 0.05, 1.0, G.mid, 0.885, z, lam(0x1c1c22));
+        kit.box(0.5, 0.05, 0.4, G.mid + 1.2, 0.915, z, M.metal);
+        kit.box(0.04, 0.32, 0.04, G.mid + 1.2, 1.07, z + 0.18, M.metal);
+        for (let i = 0; i < 4; i++) kit.cyl(0.05, 0.06, 0.16, G.mid - 1.6 + i * 0.45, 0.99, z - 0.1 + r * 0.05, lam(colors[(i + r + c.index) % 5], { emissive: colors[(i + r + c.index) % 5] & 0x333333 }), 10);
+      });
+      kit.block(0.46, 2.0, 2.6, G.x0 + 0.25, 0, G.zc, lam(0xc8ccd2));
+      for (let y = 0.55; y < 1.9; y += 0.5)
+        for (let i = 0; i < 7; i++) kit.cyl(0.045, 0.045, 0.2, G.x0 + 0.4, y, G.zc - 1.05 + i * 0.35, lam(colors[(i + Math.round(y * 2)) % 5]), 8);
+      // 인체 모형 (조금 으스스해요)
+      const bone = lam(0xf0ece0);
+      kit.cyl(0.12, 0.1, 0.55, G.x1 - 0.5, 1.15, G.HW + 2.2, bone, 10);
+      kit.sphere(0.13, G.x1 - 0.5, 1.6, G.HW + 2.2, bone);
+      kit.cyl(0.04, 0.04, 0.8, G.x1 - 0.5, 0.45, G.HW + 2.2, M.metal, 6);
+      kit.panel(0.9, 0.25, G.x1 - 0.03, 2.2, G.zc, -Math.PI / 2, tmat('labSign', () => X.label('실험실에서 뛰지 않기', '#ffd23f', '#1b1b1b'), { clamp: true, mat: { alphaTest: 0.5 } }));
+      pumpkinAt(L, G.mid - 2.2, 0.91, G.back + 0.4, 0.11);
+    },
+    /** 정보실: 모니터가 놓인 책상 줄 */
+    computer(kit, L, c, run, G) {
+      [G.back + 0.45, G.back + 1.5].forEach((z) => {
+        for (let x = G.x0 + 1.3; x <= G.x1 - 1.2; x += 0.95) {
+          kit.block(0.9, 0.04, 0.65, x, 0.72, z, lam(0xd9d4c8));
+          kit.block(0.86, 0.7, 0.04, x, 0.02, z + 0.3, lam(0x8f949c));
+          monitor(kit, x, 0.76, z + 0.1, 1);
+          kit.box(0.42, 0.02, 0.15, x, 0.75, z - 0.15, M.black); // 자판
+        }
+      });
+      for (let z = G.HW + 1.6; z < G.back - 0.2; z += 0.95) {
+        kit.block(0.65, 0.04, 0.9, G.x1 - 0.4, 0.72, z, lam(0xd9d4c8));
+        kit.box(0.04, 0.34, 0.52, G.x1 - 0.18, 1.03, z, M.black);
+        kit.box(0.01, 0.28, 0.46, G.x1 - 0.205, 1.03, z, screenM());
+      }
+      kit.panel(2.2, 1.3, G.x0 + 0.03, 1.7, G.zc, Math.PI / 2, lam(0xeeeeea)); // 스크린
+      pumpkinAt(L, G.x0 + 1.3, 0.76, G.back + 0.25, 0.1);
+    },
+    /** 자료실: 철제 선반과 상자 */
+    storage(kit, L, c, run, G) {
+      const r = X.rand(31 + c.index);
+      const box = [0xb08a5a, 0xa07a4a, 0xc49a6c, 0x8a6a4a];
+      const shelfRun = (axis, fixed, from, to) => {
+        for (let p = from; p + 1.0 <= to; p += 1.1) {
+          const cx = p + 0.5;
+          for (let y = 0.05; y < 2.0; y += 0.5) {
+            if (axis === 'x') kit.box(1.0, 0.03, 0.45, cx, y, fixed, M.metal);
+            else kit.box(0.45, 0.03, 1.0, fixed, y, cx, M.metal);
+            if (y < 1.9 && r() < 0.8) {
+              const bw = 0.3 + r() * 0.35;
+              const bh = 0.2 + r() * 0.2;
+              if (axis === 'x') kit.block(bw, bh, 0.36, cx - 0.2 + r() * 0.3, y + 0.015, fixed, lam(box[Math.floor(r() * 4)]));
+              else kit.block(0.36, bh, bw, fixed, y + 0.015, cx - 0.2 + r() * 0.3, lam(box[Math.floor(r() * 4)]));
+            }
+          }
+          if (axis === 'x') kit.box(0.03, 2.0, 0.45, cx + 0.5, 1.0, fixed, M.darkMetal);
+          else kit.box(0.45, 2.0, 0.03, fixed, 1.0, cx + 0.5, M.darkMetal);
+        }
+      };
+      shelfRun('x', G.zb - 0.3, G.x0 + 0.3, G.x1 - 0.3);
+      shelfRun('x', G.back + 0.6, G.x0 + 1.4, G.x1 - 1.4);
+      shelfRun('z', G.x0 + 0.3, G.HW + 1.0, G.zb - 0.8);
+      pumpkinAt(L, G.mid, 0.05, G.back + 0.15, 0.12);
+    },
+    /** 돌봄·늘봄·다이룸터·채움실·나눔실…: 알록달록 매트, 장난감 선반, 빈백 */
+    care(kit, L, c, run, G) {
+      const mats = [0xff8a8a, 0xffd166, 0x7ad7a0, 0x7ab8ff, 0xc9a0ff];
+      let k = 0;
+      for (let x = G.x0 + 1.6; x <= G.x1 - 1.5; x += 1.0)
+        for (let z = G.HW + 1.0; z <= G.back - 0.3; z += 1.0) kit.flat(0.97, 0.97, x, 0.008, z, lam(mats[k++ % 5]));
+      for (let x = G.x0 + 1.0; x + 1.2 <= G.x1 - 0.6; x += 1.4) {
+        kit.block(1.2, 0.8, 0.42, x + 0.6, 0, G.zb - 0.3, lam(0xf2d39a));
+        kit.block(0.35, 0.25, 0.3, x + 0.35, 0.8, G.zb - 0.3, lam(mats[Math.round(x) % 5]));
+        kit.block(0.3, 0.3, 0.3, x + 0.85, 0.8, G.zb - 0.3, lam(mats[(Math.round(x) + 2) % 5]));
+      }
+      kit.sphere(0.5, G.x0 + 1.0, 0.28, G.back + 0.6, lam(0xff7f50), 0.55); // 빈백
+      kit.sphere(0.5, G.x1 - 1.0, 0.28, G.back + 0.8, lam(0x6a8cff), 0.55);
+      kit.block(1.2, 0.5, 0.7, G.mid, 0, G.back + 0.8, lam(0xffe08a)); // 낮은 탁자
+      kit.panel(2.4, 1.2, G.x0 + 0.03, 1.6, G.zc, Math.PI / 2, tmat('bulletin-care' + (c.index % 3), () => X.bulletin(60 + c.index, ''), { clamp: true }));
+      pumpkinAt(L, G.mid, 0.5, G.back + 0.8, 0.14);
+    },
+  };
+
+  /** 3층 가운데 연결다리 입구 (창가 쪽): 유리창이 달린 긴 다리가 어둠 속으로 이어져요 */
+  function buildBridge(L, kit, bx, hall, wallM) {
+    const HW = 1.5;
+    const HH = 2.4;
+    const D = 9; // 보이는 다리 길이
+    const a = bx - 1.1;
+    const b = bx + 1.1;
+    kit.flat(2.2, D, bx, 0.004, -HW - D / 2, M.hallFloor2 || M.hallFloor, [0, 0, 2, D / 1.2]);
+    kit.flat(2.2, D, bx, HH, -HW - D / 2, M.ceiling, [0, 0, 2, D / 1.2], false);
+    const side = [];
+    for (let z = -HW - 0.8; z - 1.6 > -HW - D + 0.4; z -= 2.2) side.push({ a: z - 1.6, b: z, y0: 0.9, y1: 2.1 });
+    wallRun(kit, { axis: 'z', fixed: a, from: -HW - D, to: -HW, face: 1, material: wallM, h: HH, holes: side });
+    wallRun(kit, { axis: 'z', fixed: b, from: -HW - D, to: -HW, face: -1, material: wallM, h: HH, holes: side });
+    side.forEach((hl, i) => {
+      windowFrame(kit, { axis: 'z', fixed: a, a: hl.a, b: hl.b, y0: hl.y0, y1: hl.y1, face: 1, glass: i % 2 ? M.nightMoon : M.night, bars: 1 });
+      windowFrame(kit, { axis: 'z', fixed: b, a: hl.a, b: hl.b, y0: hl.y0, y1: hl.y1, face: -1, glass: M.night, bars: 1 });
+    });
+    kit.panel(2.2, HH, bx, HH / 2, -HW - D, 0, M.void); // 다리 끝은 캄캄
+    kit.box(2.3, 0.08, 0.14, bx, HH + 0.04, -HW + 0.02, M.darkWood);
+    // 표지판: 어느 건물로 가는 다리인지
+    const other = hall.def.building === 'sin' ? '본관' : '신관';
+    const sign = tmat('bridgeSign-' + other, () => X.label('연결다리 → ' + other, 'rgba(159,240,216,0.95)', '#0b2a24'), { clamp: true, mat: { alphaTest: 0.5 } });
+    kit.panel(1.5, 0.37, bx, 2.65, -HW + 0.02, 0, sign);
+    kit.panel(0.6, 0.3, bx, HH - 0.25, -HW - 0.6, 0, M.exitSign);
   }
 
   /** 교실 쪽 벽 한 칸 */
@@ -870,7 +1042,7 @@
       kit.box(0.08, 0.06, 3.0, mid, 1.2, HW + 1.5, M.darkWood);
       kit.add(BOX(0.06, 0.06, 3.1), M.darkWood, x1 - 0.62, 0.9 - 0.77, HW + 1.35, 0, Math.atan2(1.53, 2.7)); // 내려가는 손잡이
       // 계단참 벽: 아래층 표시와 비상구 불빛
-      const down = tmat('stairsDown-' + hall.def.floor, () => X.label('↓ ' + Math.max(1, hall.def.floor - 1) + '층 (아래층)', 'rgba(40,160,90,0.95)', '#ffffff'), { clamp: true });
+      const down = tmat('stairsDown-' + hall.def.floor, () => X.label('↓ ' + Math.max(1, hall.def.floor - 1) + '층 (아래층)', 'rgba(40,160,90,0.95)', '#ffffff'), { clamp: true, mat: { alphaTest: 0.5 } });
       kit.panel(1.3, 0.33, dx, -0.55, HW + SD - 0.02, Math.PI, down);
       kit.panel(0.6, 0.3, dx, 0.35, HW + SD - 0.02, Math.PI, M.exitSign);
       const pl = tmat('plate-계단', () => X.namePlate('계단', '비상 대피로'), { clamp: true });
@@ -898,6 +1070,9 @@
       kit.box(0.12, 0.22, 0.03, mid + 0.75, 1.2, HW - 0.01, M.darkMetal);
       const evs = tmat('evSign', () => X.namePlate('EV', '불나면 타지 마세요'), { clamp: true });
       kit.panel(0.9, 0.28, mid, 2.45, HW - 0.01, Math.PI, evs);
+      // 정전: 버튼 불도 꺼져 있고, 문에 안내문이 붙어 있어요
+      const outM = tmat('evOut', () => X.label('⚡ 정전 · 운행 중지', '#ffd23f', '#1b1b1b'), { clamp: true, mat: { alphaTest: 0.5 } });
+      kit.panel(0.95, 0.24, mid, 1.45, HW - 0.005, Math.PI, outM);
       return;
     }
     if (c.kind === 'entrance') {
@@ -907,7 +1082,7 @@
       for (let x = x0 + 0.8; x <= x1 - 0.8 + 0.01; x += (w - 1.6) / 4) kit.box(0.08, 2.6, 0.1, x, 1.3, HW + 0.1, M.frameDark);
       kit.box(w - 1.6, 0.08, 0.1, mid, 2.6, HW + 0.1, M.frameDark);
       kit.box(0.5, 0.06, 0.06, mid, 1.0, HW + 0.05, lam(0x8a8a8a)); // 체인
-      const lockSign = tmat('lockedSign', () => X.label('잠겨 있어요', '#d7263d', '#fff'), { clamp: true });
+      const lockSign = tmat('lockedSign', () => X.label('잠겨 있어요', '#d7263d', '#fff'), { clamp: true, mat: { alphaTest: 0.5 } });
       kit.panel(1.1, 0.27, mid, 1.45, HW - 0.02, Math.PI, lockSign);
       return;
     }
@@ -931,6 +1106,7 @@
         (roomWindows[c.index] = roomWindows[c.index] || []).push(glass);
       });
     const openRoom = hall.rooms.find((r) => r.cell === c.index);
+    const lockedRoom = (hall.locked || []).find((l) => l.cell === c.index);
     if (openRoom) buildRoomInside(L, kit, c, holes, run);
     doorXs.forEach((dx, i) => {
       const open = doorsOpen.has(Math.round(dx * 10));
@@ -942,6 +1118,11 @@
       const shift = open ? 0.96 : 0;
       kit.panel(1.0, 2.08, dx + shift, 1.04, HW + 0.05, Math.PI, i ? M.doorDark : M.door);
       if (openRoom) return;
+      // 잠긴 실: 문고리에 자물쇠
+      if (lockedRoom && lockedRoom.why !== 'done') {
+        kit.box(0.16, 0.05, 0.05, dx + 0.36, 1.05, HW - 0.01, M.darkMetal);
+        kit.box(0.1, 0.12, 0.05, dx + 0.42, 0.97, HW - 0.04, lam(0xb8a040, { emissive: 0x1a1400 }));
+      }
       // 닫힌 교실: 문 안쪽은 캄캄해요
       kit.panel(1.0, 2.1, dx, 1.05, HW + 0.9, Math.PI, M.void);
       kit.panel(0.85, 2.1, dx - 0.5, 1.05, HW + 0.45, Math.PI / 2, M.black);
@@ -954,10 +1135,22 @@
     kit.box(0.04, 0.3, 0.62, px, 2.5, HW - 0.31, M.white);
     kit.panel(0.6, 0.28, px + 0.022, 2.5, HW - 0.31, Math.PI / 2, plate);
     kit.panel(0.6, 0.28, px - 0.022, 2.5, HW - 0.31, -Math.PI / 2, plate);
+    // 교실 앞 신발장 (우리 반은 친구 이름표), 그 위에 게시판
+    const classroom = /^\d-\d$/.test(c.name) && doorXs.length === 2;
+    if (classroom) {
+      const mine = c.name === run.myClass && run.friends && run.friends.length;
+      const shoeM = mine
+        ? tmat('shoesClass-' + c.name + '-' + run.friends.join(','), () => X.shoeLockers(90 + c.index, run.friends, 12, null, 4))
+        : tmat('shoesClass-' + (c.index % 3), () => X.shoeLockers(90 + (c.index % 3), null, 12, null, 4));
+      kit.block(3.4, 1.0, 0.3, mid, 0, HW - 0.15, lam(0x7a5a3a));
+      kit.panel(3.36, 0.98, mid, 0.5, HW - 0.305, Math.PI, shoeM);
+      kit.box(3.44, 0.04, 0.32, mid, 1.02, HW - 0.15, M.darkWood);
+    }
     // 게시판 (문 사이 벽, 큰 방만)
     if (doorXs.length === 2) {
       const bb = tmat('bulletin-' + (c.index % 4), () => X.bulletin(41 + c.index, ''), { clamp: true });
-      kit.panel(2.4, 1.2, mid, 1.1, HW - 0.02, Math.PI, bb);
+      if (classroom) kit.panel(2.4, 0.6, mid, 1.4, HW - 0.02, Math.PI, bb, [0, 0.25, 1, 0.75]);
+      else kit.panel(2.4, 1.2, mid, 1.1, HW - 0.02, Math.PI, bb);
     }
     if (c.index % 3 === 1) extinguisher(kit, x1 - 0.25, HW - 0.2, 0);
   }

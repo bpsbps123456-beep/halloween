@@ -14,7 +14,10 @@
   const MAP_X0 = 80;
   const MAP_X1 = 936;
   const ROW_H = 32;
-  const FLOOR_TOP = { sin: { 3: 52, 2: 88, 1: 124 }, bon: { 3: 210, 2: 246, 1: 282 } };
+  // 층끼리 모아 그려요: 3층(신관·본관, 가운데 연결다리) → 2층 → 1층
+  const FLOOR_TOP = { sin: { 3: 40, 2: 150, 1: 250 }, bon: { 3: 98, 2: 186, 1: 286 } };
+  const BUILDING_INK = { sin: '#ffd166', bon: '#9fd0ff' };
+  const BUILDING_PAPER = { sin: '#c0392b', bon: '#1f5fa8' };
 
   /** 지도에서 방 칸의 위치 (960×540 그림 좌표) */
   function cellRect(building, floor, index) {
@@ -89,9 +92,12 @@
     const routeSet = new Set(places);
     ['sin', 'bon'].forEach((b) => {
       const bd = E.BUILDINGS[b];
-      text(ctx, bd.name, 38, FLOOR_TOP[b][2] + ROW_H / 2, 20, o.paper ? '#c0392b' : '#ffd166');
       [3, 2, 1].forEach((f) => {
-        text(ctx, f + '층', MAP_X0 - 18, FLOOR_TOP[b][f] + ROW_H / 2, 11, o.paper ? '#55607a' : '#8fa0d0');
+        const y = FLOOR_TOP[b][f] + ROW_H / 2;
+        text(ctx, bd.name, MAP_X0 - 52, y, 13, o.paper ? BUILDING_PAPER[b] : BUILDING_INK[b]);
+        text(ctx, f + '층', MAP_X0 - 20, y, 13, o.paper ? '#33405e' : '#c9d3f0');
+        ctx.fillStyle = o.paper ? BUILDING_PAPER[b] : BUILDING_INK[b];
+        ctx.fillRect(MAP_X0 - 5, FLOOR_TOP[b][f] + 2, 3, ROW_H - 4);
         bd.floors[f].forEach((name, i) => {
           const r = cellRect(b, f, i);
           const onRoute = routeSet.has(name) && name !== '현관';
@@ -118,20 +124,18 @@
       ctx.moveTo(r.x + r.w - 6, r.y + 5);
       ctx.lineTo(r.x + 6, r.y + r.h - 5);
       ctx.stroke();
-      text(ctx, '잠김', r.x + r.w / 2, r.y + r.h + 9, 11, '#ff6b6b');
+      text(ctx, '잠김', r.x + r.w / 2, b === 'sin' ? r.y - 8 : r.y + r.h + 9, 11, '#ff6b6b');
     });
-    // 연결통로
-    ctx.strokeStyle = o.paper ? 'rgba(20, 140, 110, 0.8)' : 'rgba(159, 240, 216, 0.6)';
-    ctx.setLineDash([6, 6]);
-    ctx.lineWidth = 3;
-    const c1 = cellRect('sin', 1, 5);
-    const c2 = cellRect('bon', 3, 4);
-    ctx.beginPath();
-    ctx.moveTo(c1.x, c1.y + ROW_H);
-    ctx.lineTo(c2.x + c2.w / 2, c2.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    text(ctx, '연결통로', c1.x + 50, 182, 12, o.paper ? '#148c6e' : '#9ff0d8');
+    // 연결다리: 신관 3층 가운데 ↔ 본관 3층 가운데
+    const bxm = (MAP_X0 + MAP_X1) / 2;
+    const y0 = FLOOR_TOP.sin[3] + ROW_H;
+    const y1 = FLOOR_TOP.bon[3];
+    ctx.fillStyle = o.paper ? 'rgba(20, 140, 110, 0.35)' : 'rgba(159, 240, 216, 0.35)';
+    ctx.fillRect(bxm - 9, y0, 18, y1 - y0);
+    ctx.strokeStyle = o.paper ? '#148c6e' : '#9ff0d8';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bxm - 9, y0, 18, y1 - y0);
+    text(ctx, '3층 연결다리', bxm + 52, (y0 + y1) / 2, 12, o.paper ? '#148c6e' : '#9ff0d8');
 
     // 탈출 경로 (대피 안내도처럼 빨간 화살표)
     const pts = places.map((name) => {
@@ -167,20 +171,16 @@
     ctx.fill();
     text(ctx, '탈출!', exit.x + 52, exit.y + 44, 16, o.paper ? '#c0392b' : '#ff8a8a');
 
-    // 현위치 (복도 벽의 대피 안내도)
+    // 현위치 (복도 벽의 대피 안내도): 그 칸을 빨갛게 두르고 이름표를 달아요
     if (o.here) {
       const r = cellRect(o.here.building, o.here.floor, o.here.index);
+      ctx.strokeStyle = '#e8443a';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
       const x = r.x + r.w / 2;
-      const y = r.y + r.h + 10;
       ctx.fillStyle = '#e8443a';
-      ctx.beginPath();
-      ctx.moveTo(x, y - 8);
-      ctx.lineTo(x - 9, y + 8);
-      ctx.lineTo(x + 9, y + 8);
-      ctx.fill();
-      ctx.fillStyle = '#e8443a';
-      ctx.fillRect(x - 30, y + 10, 60, 20);
-      text(ctx, '현위치', x, y + 20, 13, '#fff');
+      ctx.fillRect(x - 30, r.y - 18, 60, 18);
+      text(ctx, '현위치', x, r.y - 9, 13, '#fff');
     }
   };
 

@@ -480,6 +480,21 @@
     return cell.x1 - cell.x0 >= 8 ? [cell.x0 + 1.6, cell.x1 - 1.6] : [(cell.x0 + cell.x1) / 2];
   }
 
+  /* 교실을 나와서 처음 걷는 신관 2층 복도: 바로 옆 계단으로 1층 현관까지 내려가요.
+     경비 아저씨는 저쪽 끝(채움실 쪽)을 순찰해요. */
+  const FIRST_HALL = {
+    id: 'h0',
+    building: 'sin',
+    floor: 2,
+    fromIndex: 1,
+    toIndex: 0,
+    startSide: 1, // 6-3 뒷문으로 나와요
+    patrol: [36, 50],
+    goalLabel: '계단 (1층 현관으로)',
+    guard: { speed: 1.0, chase: 3.2, cone: 6.5, turn: 0, check: 0.5 },
+    intro: '6-3 교실을 빠져나왔어요. 복도는 캄캄해요… 교실 앞 신발장을 지나 바로 옆 계단으로 1층 현관까지 내려가요. 저쪽 끝에 경비 아저씨 손전등이 보여요! 다른 실도 둘러볼 수 있어요.',
+  };
+
   /* fromIndex/toIndex 는 대피 안내도 복도 줄의 칸 번호 */
   const HALLS = [
     {
@@ -489,16 +504,17 @@
       fromIndex: 7,
       toIndex: 2,
       guard: { speed: 1.1, chase: 3.3, cone: 7.5, turn: 0, check: 0.6 },
-      intro: '신관 현관은 막혔어요! 가운데 계단으로 신관 3층까지 올라왔어요. 과학실을 지나 연결통로로 본관에 건너가요. 경비 아저씨가 순찰 중이에요! 불빛에 오래 비치면 들켜요. 들키면 계단으로 내려가 따돌려요.',
+      intro: '신관 현관은 막혔어요! 1층 복도를 지나 가운데 계단으로 신관 3층까지 올라왔어요. 먼저 과학실! 그다음 복도 가운데 연결다리로 본관에 건너가요. 경비 아저씨가 순찰 중이에요! 불빛에 오래 비치면 들켜요.',
     },
     {
       id: 'h2',
       building: 'bon',
       floor: 3,
-      fromIndex: 4,
+      fromIndex: 5,
       toIndex: 1,
+      fromBridge: true,
       guard: { speed: 1.25, chase: 3.5, cone: 8, turn: 0.06, check: 0.65 },
-      intro: '연결통로를 건너 본관 3층에 왔어요. 도서관은 복도 끝 왼쪽이에요. 문이 열린 교실은 들어갈 수 있어요. 앞문으로 들어가 뒷문으로 나오면 경비 아저씨를 따돌려요!',
+      intro: '신관 3층 가운데 연결다리를 건너 본관 3층에 왔어요. 도서관은 복도 끝 왼쪽이에요. 문이 열린 교실은 들어갈 수 있어요. 앞문으로 들어가 뒷문으로 나오면 경비 아저씨를 따돌려요!',
     },
     {
       id: 'h3',
@@ -529,37 +545,58 @@
     },
   ];
 
-  /** 복도 하나를 만듭니다. 칸은 지도 순서(왼쪽→오른쪽) 그대로 놓고, 가는 방향(dir)만 바뀌어요. */
+  /** 실 종류: 열린 실 안을 꾸밀 때 써요 */
+  function roomType(name) {
+    if (/^\d-\d$/.test(name)) return 'classroom';
+    if (/연구실|교무실|교장실|행정실/.test(name)) return 'teacher';
+    if (/회의실|미래실|연수실/.test(name)) return 'meeting';
+    if (/시약실|과학실/.test(name)) return 'lab';
+    if (/정보실|서버실/.test(name)) return 'computer';
+    if (/자료실|문서고/.test(name)) return 'storage';
+    if (name === '도서관') return 'library';
+    if (name === '방송실') return 'broadcast';
+    if (name === '보건실') return 'nurse';
+    return 'care'; // 다이룸터·채움실·나눔실·어울림실·돌봄교실·늘봄교실·유치원·도움반
+  }
+  /** 밤에는 늘 잠가 두는 실 */
+  const ALWAYS_LOCKED = ['교장실', '행정실', '서버실', '문서고'];
+
+  /** 복도 하나를 만듭니다. 대피 안내도의 그 층 실을 모두 만들고(들어갈 수 있는 실·잠긴 실),
+      칸은 지도 순서(왼쪽→오른쪽) 그대로 놓고, 가는 방향(dir)만 바뀌어요. */
   function createHall(def, seed) {
     const row = BUILDINGS[def.building].floors[def.floor];
     const dir = def.toIndex > def.fromIndex ? 1 : -1;
-    const lo = Math.min(def.fromIndex, def.toIndex);
-    const hi = Math.max(def.fromIndex, def.toIndex);
-    const first = Math.max(0, lo - 1);
-    const last = Math.min(row.length - 1, hi + 1);
     const cells = [];
     let x = 0;
-    for (let i = first; i <= last; i++) {
-      const w = cellWidth(row[i]);
-      cells.push({ name: row[i], index: i, x0: x, x1: x + w, kind: cellKind(row[i]) });
+    row.forEach((name, i) => {
+      const w = cellWidth(name);
+      cells.push({ name, index: i, x0: x, x1: x + w, kind: cellKind(name), type: cellKind(name) === 'room' ? roomType(name) : cellKind(name) });
       x += w;
-    }
-    const cellAt = (i) => cells.find((c) => c.index === i);
-    const from = cellAt(def.fromIndex);
-    const to = cellAt(def.toIndex);
-    const startX = from.kind === 'room' ? doorX(from, dir) : (from.x0 + from.x1) / 2;
+    });
+    const from = cells[def.fromIndex];
+    const to = cells[def.toIndex];
+    // 3층은 복도 가운데에서 연결다리로 신관과 본관이 이어져요
+    const bridgeX = def.floor === 3 ? Math.round((x / 2) * 10) / 10 : null;
+    let startX = from.kind === 'room' ? doorX(from, def.startSide || dir) : (from.x0 + from.x1) / 2;
+    if (def.fromBridge) startX = bridgeX;
+    const fromCell = def.fromBridge ? -1 : def.fromIndex;
     const goalX = doorX(to, -dir);
-    const inside = (sx) => (sx - startX) * dir > 2 && (goalX - sx) * dir > 2;
 
-    // 문이 열린 교실: 하나 건너 하나씩 (들어가서 숨거나, 다른 문으로 빠져나가요)
+    // 실마다: 들어갈 수 있는 실(하나 건너 하나), 잠긴 실, 나중에 갈 실(다른 수수께끼 방), 다녀온 실
+    const later = STEPS.map((st) => st.place).concat([EXIT.place]);
     const rooms = [];
+    const locked = [];
     let roomCount = 0;
     cells.forEach((c) => {
-      if (c.kind !== 'room' || c.index === def.fromIndex || c.index === def.toIndex) return;
-      if (roomCount++ % 2) return;
-      const doors = doorsOf(c).filter(inside);
-      if (!doors.length) return;
-      rooms.push({ cell: c.index, name: c.name, x0: c.x0, x1: c.x1, ix0: c.x0 + ROOM_INSET, ix1: c.x1 - ROOM_INSET, doors: doorsOf(c) });
+      if (c.kind !== 'room' || c.index === def.toIndex) return;
+      if (c.index === fromCell) {
+        locked.push({ cell: c.index, name: c.name, doors: doorsOf(c), why: 'done' });
+        return;
+      }
+      const k = roomCount++;
+      if (later.indexOf(c.name) >= 0) locked.push({ cell: c.index, name: c.name, doors: doorsOf(c), why: 'later' });
+      else if (ALWAYS_LOCKED.indexOf(c.name) >= 0 || k % 2) locked.push({ cell: c.index, name: c.name, doors: doorsOf(c), why: 'locked' });
+      else rooms.push({ cell: c.index, name: c.name, type: c.type, x0: c.x0, x1: c.x1, ix0: c.x0 + ROOM_INSET, ix1: c.x1 - ROOM_INSET, doors: doorsOf(c) });
     });
 
     // 숨을 곳: 화장실, 계단(아래층으로), 빈 곳은 청소함으로 메워요
@@ -567,36 +604,44 @@
     cells.forEach((c) => {
       if (c.index === def.toIndex) return;
       const mid = (c.x0 + c.x1) / 2;
-      if (c.kind === 'toilet' && inside(mid)) spots.push({ x: mid, z: 1.5, kind: 'toilet', label: '화장실' });
+      if (c.kind === 'toilet') spots.push({ x: mid, z: 1.5, kind: 'toilet', label: '화장실' });
       // 계단은 출발 자리에 있어도 돼요: 들키면 아래층으로 내려가 따돌려요
       if (c.kind === 'stairs') spots.push({ x: mid, z: 1.5, kind: 'stairs', label: '아래층 계단', downX: c.x1 - 1.4 });
     });
-    const havens = () => spots.map((s) => s.x).concat(...rooms.map((r) => r.doors));
+    const havens = () => spots.map((sp) => sp.x).concat(...rooms.map((r) => r.doors));
     const near = (sx) => havens().some((hx) => Math.abs(hx - sx) < 3);
+    // 청소함은 창가 쪽: 연결다리 입구 앞에는 두지 않아요
+    const addLocker = (lx) => {
+      let px = lx;
+      if (bridgeX != null && Math.abs(px - bridgeX) < 1.8) px = bridgeX + (px < bridgeX ? -1.8 : 1.8);
+      spots.push({ x: Math.max(1, Math.min(x - 1, px)), z: -1.25, kind: 'locker', label: '청소함' });
+    };
     const firstSafe = startX + dir * 4.5;
     const lastSafe = goalX - dir * 4;
-    if (!near(firstSafe)) spots.push({ x: firstSafe, z: -1.25, kind: 'locker', label: '청소함' });
-    if (!near(lastSafe)) spots.push({ x: lastSafe, z: -1.25, kind: 'locker', label: '청소함' });
-    for (let guard = 0; guard < 20; guard++) {
+    if (!near(firstSafe)) addLocker(firstSafe);
+    if (!near(lastSafe)) addLocker(lastSafe);
+    for (let guard = 0; guard < 40; guard++) {
       const xs = havens()
-        .filter((hx) => (hx - startX) * dir > -0.5 && (goalX - hx) * dir > 0)
         .concat([startX])
-        .sort((a, b) => a - b);
+        .filter((hx) => hx > 1.5 && hx < x - 1.5)
+        .sort((p, q) => p - q);
+      // 출발~도착 사이(경비원이 다니는 곳)는 숨을 곳을 조금 더 촘촘하게
+      const lo = Math.min(startX, goalX);
+      const hi = Math.max(startX, goalX);
       let gap = -1;
-      for (let i = 0; i + 1 < xs.length; i++) if (xs[i + 1] - xs[i] > 9) gap = i;
+      for (let i = 0; i + 1 < xs.length; i++) if (xs[i + 1] - xs[i] > (xs[i] >= lo - 1 && xs[i + 1] <= hi + 1 ? 7.5 : 9)) gap = i;
       if (gap < 0) break;
-      spots.push({ x: (xs[gap] + xs[gap + 1]) / 2, z: -1.25, kind: 'locker', label: '청소함' });
+      addLocker((xs[gap] + xs[gap + 1]) / 2);
     }
-    spots.sort((a, b) => a.x - b.x);
+    spots.sort((p, q) => p.x - q.x);
 
-    // 경비원은 출발 쪽 7m 밖에서부터 도착 문 3.5m 앞까지 순찰해요
-    const a = startX + dir * 7;
-    const b = goalX - dir * 3.5;
+    // 경비원은 출발 쪽 7m 밖에서부터 도착 문 3.5m 앞까지 순찰해요 (따로 정한 곳이 있으면 거기)
+    const a = def.patrol ? def.patrol[0] : startX + dir * 7;
+    const b = def.patrol ? def.patrol[1] : goalX - dir * 3.5;
     const g = def.guard;
     const lo2 = Math.min(a, b);
     const hi2 = Math.max(a, b);
     const inPatrol = (d) => d.x >= lo2 + 0.3 && d.x <= hi2 - 0.3;
-    const openCells = rooms.map((r) => r.cell);
     const guard = {
       min: lo2,
       max: hi2,
@@ -604,12 +649,12 @@
       chaseSpeed: g.chase,
       cone: g.cone,
       turn: g.turn,
-      // 순찰하다가 닫힌 교실 문을 열고 들어가 살펴봐요: 그때가 지나갈 기회!
-      doors: cells
-        .filter((c) => c.kind === 'room' && c.index !== def.fromIndex && c.index !== def.toIndex && openCells.indexOf(c.index) < 0)
-        .reduce((all, c) => all.concat(doorsOf(c).map((dx) => ({ x: dx, cell: c.index }))), [])
+      // 순찰하다가 잠긴 실 문을 열쇠로 열고 들어가 살펴봐요: 그때가 지나갈 기회!
+      doors: locked
+        .filter((l) => l.why !== 'done')
+        .reduce((all, l) => all.concat(l.doors.map((dx) => ({ x: dx, cell: l.cell }))), [])
         .filter(inPatrol),
-      // 열린 교실은 문 앞에 서서 손전등으로 안을 비춰 봐요
+      // 열린 실은 문 앞에 서서 손전등으로 안을 비춰 봐요
       peeks: [].concat(...rooms.map((r) => r.doors.map((d) => ({ x: d, cell: r.cell })))).filter(inPatrol),
       checkChance: g.check,
     };
@@ -621,8 +666,12 @@
       startX,
       goalX,
       goalZ: 1.3,
+      bridgeX,
       spots,
       rooms,
+      locked,
+      evs: cells.filter((c) => c.kind === 'ev').map((c) => (c.x0 + c.x1) / 2),
+      entrances: cells.filter((c) => c.kind === 'entrance' && c.index !== def.fromIndex).map((c) => ({ x: (c.x0 + c.x1) / 2, name: c.name })),
       guard,
       player: null,
       t: 0,
@@ -1329,6 +1378,8 @@
     cellWidth,
     doorX,
     doorsOf,
+    roomType,
+    FIRST_HALL,
     createHall,
     resetHall,
     stepHall,

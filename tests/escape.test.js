@@ -403,6 +403,51 @@ test('복도: 뛰면 발소리를 듣고 소리 난 곳을 살피러 와요', ()
   assert.equal(g.state === 'investigate' || E.hunting(g), true, g.state);
 });
 
+test('복도: 그 층의 실이 모두 있고, 실마다 들어갈 수 있거나 잠겨 있어요 (엘리베이터는 정전)', () => {
+  for (const def of [E.FIRST_HALL].concat(E.HALLS)) {
+    const h = E.createHall(def, 7);
+    const row = E.BUILDINGS[def.building].floors[def.floor];
+    assert.deepEqual(h.cells.map((c) => c.name), row, def.id + ' 층 전체');
+    h.cells
+      .filter((c) => c.kind === 'room' && c.index !== def.toIndex)
+      .forEach((c) => {
+        const open = h.rooms.find((r) => r.cell === c.index);
+        const locked = h.locked.find((l) => l.cell === c.index);
+        assert.ok(!!open !== !!locked, def.id + ' ' + c.name + ' 은 열리거나 잠겨 있어야 해요');
+        // 잠긴 실 문으로는 못 들어가요
+        if (locked) E.doorsOf(c).forEach((d) => assert.ok(!E.walkable(h, d, 1.6), def.id + ' 잠긴 ' + c.name));
+      });
+    // 다른 수수께끼 방은 아직 잠겨 있어요
+    h.locked.filter((l) => l.why === 'later').forEach((l) => assert.ok(E.STEPS.some((st) => st.place === l.name) || l.name === E.EXIT.place));
+    assert.equal(h.evs.length, row.filter((n) => n === 'EV').length);
+    h.evs.forEach((x) => assert.ok(!E.walkable(h, x, 1.6), '엘리베이터는 못 타요'));
+  }
+});
+
+test('연결다리: 신관 3층과 본관 3층 복도 가운데에 있고, 본관 3층은 다리를 건너와서 시작해요', () => {
+  const h1 = E.createHall(E.HALLS[0], 1);
+  const h2 = E.createHall(E.HALLS[1], 1);
+  assert.equal(E.HALLS[0].floor, 3);
+  assert.equal(E.HALLS[1].floor, 3);
+  assert.ok(Math.abs(h1.bridgeX - h1.length / 2) < 0.1);
+  assert.ok(Math.abs(h2.bridgeX - h2.length / 2) < 0.1);
+  assert.equal(h2.startX, h2.bridgeX);
+  // 청소함이 다리 입구를 막지 않아요
+  [h1, h2].forEach((h) => h.spots.filter((sp) => sp.kind === 'locker').forEach((sp) => assert.ok(Math.abs(sp.x - h.bridgeX) >= 1.5)));
+  assert.equal(E.createHall(E.HALLS[2], 1).bridgeX, null);
+});
+
+test('6-3 교실 다음: 신관 2층 복도에서 바로 옆 계단으로 내려가요 (경비 아저씨는 저쪽 끝)', () => {
+  const def = E.FIRST_HALL;
+  assert.equal(E.BUILDINGS[def.building].floors[def.floor][def.fromIndex], '6-3');
+  assert.equal(E.BUILDINGS[def.building].floors[def.floor][def.toIndex], '계단');
+  const h = E.createHall(def, 3);
+  assert.ok(h.guard.min - h.startX > h.guard.cone + 5, '경비 아저씨 불빛이 교실 앞까지 오지 않아요');
+  let ok = 0;
+  for (let seed = 1; seed <= 10; seed++) if (bot.run(def, seed, 0, 120).done) ok++;
+  assert.equal(ok, 10);
+});
+
 test('시간 표시', () => {
   assert.equal(E.formatTime(0), '00:00');
   assert.equal(E.formatTime(75.9), '01:15');

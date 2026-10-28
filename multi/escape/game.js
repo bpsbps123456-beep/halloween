@@ -765,8 +765,16 @@
       return;
     }
     HG.sound.play('creak');
-    if (ROUTE[game.stage].id === 'classroom') return startLobby();
+    if (ROUTE[game.stage].id === 'classroom') return startFirstHall();
     nextStage();
+  }
+
+  /** 6-3 교실을 나와 신관 2층 복도로: 교실 앞 신발장을 지나 바로 옆 계단으로 1층 현관까지 */
+  function startFirstHall() {
+    closePanel();
+    game.stage = 1; // 이어서 하면 신관 3층 복도부터
+    save();
+    startHall(E.FIRST_HALL, { next: '신관 1층 현관', onGoal: startLobby });
   }
 
   /* ---------------- 신관 1층 현관: 잠겼어요! (화이트데이처럼 돌아서 가야 해요) ----------------
@@ -774,8 +782,7 @@
      유령 부가 나타나 3층 연결통로로 본관에 건너가라고 알려 줘요. */
   function startLobby() {
     closePanel();
-    game.stage = 1; // 이어서 하면 신관 3층 복도부터
-    save();
+    ['peek', 'peekLabel', 'danger', 'guardTalk'].forEach((id) => ($(id).hidden = true));
     setLevel(R.lobby(game.run));
     let tried = 0;
     st = {
@@ -1515,8 +1522,10 @@
   };
 
   /* ---------------- 복도: 경비원 피해 몰래 가기 ---------------- */
-  function startHall(def) {
-    const h = E.createHall(def, game.seed + game.stage * 7919);
+  /** opts: { next: 다음 목적지 이름, onGoal: 도착하면 할 일 (없으면 다음 단계) } */
+  function startHall(def, opts) {
+    const o = opts || {};
+    const h = E.createHall(def, game.seed + game.stage * 7919 + (def.id === 'h0' ? 13 : 0));
     setLevel(W3.buildHall(h, game.run));
     const at = E.BUILDINGS[def.building].name + ' ' + def.floor + '층 복도';
     $('hudPlace').textContent = at;
@@ -1525,10 +1534,14 @@
     $('actBtn').hidden = false;
     HG.sound.stopMusic();
     const next = ROUTE[game.stage + 1];
-    const nextPlace = next.kind === 'room' ? game.run.steps.find((s) => s.id === next.id).place : E.EXIT.place;
+    const nextPlace = o.next || (next.kind === 'room' ? game.run.steps.find((s) => s.id === next.id).place : E.EXIT.place);
     st = {
       kind: 'hall',
       hall: h,
+      onGoal: o.onGoal || null,
+      notes: hallNotes(h, nextPlace),
+      noteCool: 0,
+      lastNote: null,
       caughtT: 0,
       heart: 0,
       steps: 0,
@@ -1539,9 +1552,42 @@
     };
     player.y = 0;
     paintHintBtn();
-    showMap('다음 목적지: ' + where(nextPlace), def.intro, '복도로 나가기', () => {
+    showMap('다음 목적지: ' + (o.next ? nextPlace : where(nextPlace)), def.intro, '복도로 나가기', () => {
       say('노랗게 빛나는 ' + nextPlace + ' 문으로 가요! 숨을 곳 앞에서 「숨기」 (E · Space). 문이 열린 교실은 걸어 들어갈 수 있어요', 5500);
     });
+  }
+
+  /** 복도에서 가까이 가면 알려 주는 것: 잠긴 실, 정전된 엘리베이터, 잠긴 현관, 연결다리 */
+  function hallNotes(h, nextPlace) {
+    const list = [];
+    h.locked.forEach((l) =>
+      l.doors.forEach((dx) =>
+        list.push({
+          x: dx,
+          side: 1,
+          r: 0.6,
+          text: l.why === 'done' ? '이미 다녀온 ' + l.name + '이야. 이제 ' + nextPlace + '!' : l.why === 'later' ? '🔒 ' + l.name + ' — 지금은 잠겨 있어. 먼저 ' + nextPlace + '!' : '🔒 ' + l.name + ' — 문이 잠겨 있어요',
+        })
+      )
+    );
+    h.evs.forEach((x) => list.push({ x, side: 1, r: 0.75, text: '⚡ 엘리베이터는 전원이 나가서 움직이지 않아요. 계단으로 가요!' }));
+    h.entrances.forEach((en) =>
+      list.push({ x: en.x, side: 1, r: 1.8, text: en.name === E.EXIT.place ? '🔒 ' + en.name + ' — 큰 자물쇠가 걸려 있어! ' + nextPlace + '부터 가요' : '🔒 ' + en.name + ' — 쇠사슬로 잠겨 있어요' })
+    );
+    if (h.bridgeX != null)
+      list.push({ x: h.bridgeX, side: -1, r: 1.1, text: h.def.fromBridge ? '🌉 연결다리 — 신관으로 돌아갈 필요는 없어. ' + nextPlace + '(으)로 가자!' : '🌉 연결다리 — 본관으로 가는 길이야. 먼저 ' + nextPlace + '부터!' });
+    return list;
+  }
+  function checkNotes(h, dt) {
+    if (st.noteCool > 0) st.noteCool -= dt;
+    const p = h.player;
+    const n = p.hidden < 0 ? st.notes.find((q) => Math.abs(q.x - p.x) < q.r && (q.side > 0 ? p.z > E.Z_MAX - 0.15 && p.z < E.WALL_Z : p.z < E.Z_MIN + 0.2)) : null;
+    if (n && n !== st.lastNote && st.noteCool <= 0) {
+      say(n.text, 3000);
+      HG.sound.play('wrong');
+      st.noteCool = 1.2;
+    }
+    st.lastNote = n || null;
   }
 
   /** 숨은 곳에서 보는 자리: 청소함 틈 / 화장실 문 안 / 아래층 계단참 */
@@ -1635,17 +1681,19 @@
       } else if (e.type === 'goal') {
         h.events.length = 0;
         HG.sound.play('creak');
-        nextStage();
+        if (st.onGoal) st.onGoal();
+        else nextStage();
         return;
       }
     }
     h.events.length = 0;
+    checkNotes(h, dt);
     // 열린 교실에 들어왔을 때
     const room = h.player.hidden < 0 ? E.roomAt(h, h.player.x, h.player.z) : null;
     st.room = room ? room.cell : null;
     if (room && !st.roomsSeen.has(room.cell)) {
       st.roomsSeen.add(room.cell);
-      say('🚪 ' + room.name + ' 교실에 들어왔어요. 복도에서는 안 보여요!' + (room.doors.length > 1 ? ' 다른 문으로 빠져나갈 수도 있어요' : ' 문이 하나뿐이라 쫓길 때는 막다른 곳이에요'), 4200);
+      say('🚪 ' + room.name + (room.type === 'classroom' ? ' 교실' : '') + '에 들어왔어요. 복도에서는 안 보여요!' + (room.doors.length > 1 ? ' 다른 문으로 빠져나갈 수도 있어요' : ' 문이 하나뿐이라 쫓길 때는 막다른 곳이에요'), 4200);
     }
     // 숨었을 때: 청소함 틈 / 화장실 문 안 / 계단참
     const nowHidden = h.player.hidden >= 0;
