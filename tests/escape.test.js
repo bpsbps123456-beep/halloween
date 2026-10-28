@@ -203,9 +203,11 @@ test('복도: 출발할 때는 경비원 불빛 밖이고, 숨을 곳(청소함�
         .sort((a, b) => a - b);
       assert.ok(xs.length >= 5, def.id);
       for (let i = 1; i < xs.length; i++) assert.ok(xs[i] - xs[i - 1] <= 9.01, def.id + ' 숨을 곳 사이가 멀어요 ' + xs[i - 1] + '→' + xs[i]);
-      // 열린 교실 문은 열린 교실 안으로 이어지고, 교실 쪽 벽은 못 지나가요
+      // 들어갈 수 있는 실의 문은 처음엔 닫혀 있고, 드르륵 열면 실 안으로 이어져요. 교실 쪽 벽은 못 지나가요
       h.rooms.forEach((r) => {
         r.doors.forEach((d) => {
+          assert.ok(!E.walkable(h, d, 1.6), def.id + ' 닫힌 문');
+          E.openDoor(h, d, 'player');
           assert.ok(E.walkable(h, d, 1.6), def.id + ' 문 통로');
           assert.ok(E.walkable(h, d, E.ROOM_Z0 + 0.5), def.id + ' 교실 안');
           assert.ok(!E.walkable(h, d + 0.6, 1.4), def.id + ' 문 옆 벽');
@@ -387,6 +389,36 @@ test('복도: 열린 교실로 들어가면 복도에서는 안 보이고, 경�
     maxZ = Math.max(maxZ, g.z);
   }
   assert.ok(maxZ > E.ROOM_Z0, '교실 안까지 들어와요');
+});
+
+test('복도: 미닫이문은 밀면 드르륵 열리고, 가까이 있는 경비원은 문소리를 듣고 와요', () => {
+  const h = E.createHall(E.HALLS[2], 5);
+  const g = h.guard;
+  const r = h.rooms[0];
+  const d = r.doors[0];
+  g.x = d + 3;
+  g.z = 0;
+  g.state = 'walk';
+  g.face = 1;
+  g.ang = 0; // 등을 돌리고 있어요
+  h.player.x = d;
+  h.player.z = 1.1;
+  E.stepHall(h, { vx: 0, vz: E.WALK }, 1 / 60);
+  assert.ok(E.isDoorOpen(h, d), '밀면 열려요');
+  assert.ok(h.events.some((e) => e.type === 'doorOpen' && e.by === 'player'));
+  assert.equal(g.state, 'listen', '문소리를 들었어요');
+  assert.ok(Math.abs(g.clue.x - d) < 0.01);
+  // 멀리 있으면 못 들어요
+  const h2 = E.createHall(E.HALLS[2], 5);
+  h2.guard.x = h2.rooms[0].doors[0] + 12;
+  h2.guard.state = 'walk';
+  h2.player.x = h2.rooms[0].doors[0];
+  h2.player.z = 1.1;
+  E.stepHall(h2, { vx: 0, vz: E.WALK }, 1 / 60);
+  assert.notEqual(h2.guard.state, 'listen');
+  // 잡혀서 처음부터 하면 문도 다시 닫혀요
+  E.resetHall(h2);
+  assert.ok(!E.isDoorOpen(h2, h2.rooms[0].doors[0]));
 });
 
 test('복도: 뛰면 발소리를 듣고 소리 난 곳을 살피러 와요', () => {

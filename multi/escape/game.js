@@ -396,6 +396,7 @@
     waitUntil = 0;
     game.stage = i;
     game.solved = false;
+    $('hudKey').hidden = true;
     game.roomHints = 0;
     save();
     const s = ROUTE[i];
@@ -744,7 +745,7 @@
     setTimeout(() => {
       $('rewardTitle').textContent = step.place + ' 통과!';
       $('rewardDigit').textContent = String(digit);
-      $('rewardNote').textContent = '📒 숫자 수첩의 ' + step.icon + ' 칸에 적어 두었어요. 이제 문으로 나가요!';
+      $('rewardNote').textContent = '📒 숫자 수첩의 ' + step.icon + ' 칸에 적어 두었어요. 🔑 문 열쇠도 얻었어요! 자물쇠가 달린 문에 가서 열쇠로 열어요.';
       showOverlay('rewardScreen');
       $('rewardNext').focus();
     }, 700);
@@ -752,16 +753,29 @@
   $('rewardNext').addEventListener('click', () => {
     showOverlay(null);
     blurActive();
-    if (level && level.openExit) {
-      level.openExit();
-      HG.sound.play('unlock');
-      say('문이 열렸어! 반짝이는 문으로 나가자.', 4000);
+    if (level && level.keyReady) {
+      level.keyReady();
+      $('hudKey').hidden = false;
+      HG.sound.play('gold');
+      say('🔑 열쇠를 얻었어! 자물쇠가 반짝이는 문을 눌러서 열어 봐.', 4500);
     }
   });
   function leaveRoom() {
     if (!game.solved) {
       say('문이 잠겨 있어! 이 방의 수수께끼를 먼저 풀어야 해.', 3000);
       HG.sound.play('wrong');
+      return;
+    }
+    // 아직 잠긴 문: 얻은 열쇠로 딸깍 열어요
+    if (level.unlockExit && !level.exitOpen) {
+      level.unlockExit(
+        () => HG.sound.play('unlock'),
+        () => {
+          HG.sound.play('slide');
+          $('hudKey').hidden = true;
+          say('딸깍! 문이 열렸어. 이제 나가자!', 3000);
+        }
+      );
       return;
     }
     HG.sound.play('creak');
@@ -936,6 +950,7 @@
       E.stepHall(op.hall, {}, dt);
       op.hall.events.length = 0;
       level.guard.sync(op.hall.guard, dt, game.t);
+      if (level.syncDoors) level.syncDoors(op.hall, dt);
     }
     if (op.cam) op.cam(op.t - op.shotAt);
     if (op.shake > 0) {
@@ -1636,7 +1651,11 @@
       else if (e.type === 'lost') {
         if (e.saw) guardSay('👮 “거기 숨었지!” — 숨는 걸 봤어요! 얼른 나와서 도망가요!', 3000);
         else guardSay('👮 “이상하다… 어디 갔지?” — 마지막으로 본 곳을 찾아봐요', 2600);
-      } else if (e.type === 'heard') guardSay('👮 “무슨 소리지?” — 소리 난 곳을 살피러 와요! 뛰지 마요', 2600);
+      } else if (e.type === 'heard') guardSay(e.door ? '👮 “드르륵? 무슨 소리지?” — 문소리를 듣고 와요! 경비 아저씨가 멀 때 열어요' : '👮 “무슨 소리지?” — 소리 난 곳을 살피러 와요! 뛰지 마요', 2600);
+      else if (e.type === 'doorOpen') {
+        const dist = Math.abs(e.x - player.x);
+        HG.sound.play('slide', { vol: Math.max(0.15, 1 - dist / 25) });
+      }
       else if (e.type === 'look') guardSay('👀 경비 아저씨가 멈춰 섰어요… 곧 뒤돌아봐요!', 1800);
       else if (e.type === 'check') {
         HG.sound.play('creak');
@@ -1645,7 +1664,8 @@
       else if (e.type === 'stairsLook') guardSay('👮 “아래층으로 도망갔나…?” — 계단 위에서 비춰 봐요. 조금 기다렸다 올라가요', 3200);
       else if (e.type === 'roomSearch') guardSay('🔦 경비 아저씨가 교실 안을 뒤져요! 다른 문으로 빠져나가요', 3000);
       else if (e.type === 'peekRoom') {
-        if (st.room === e.cell) guardSay('🔦 경비 아저씨가 이 교실 문 안을 비춰요! 문 옆 벽에 바짝 붙어요', 2600);
+        if (st.room === e.cell) guardSay((e.opened ? '👮 “어? 문이 왜 열려 있지?” ' : '🔦 ') + '경비 아저씨가 이 교실 문 안을 비춰요! 문 옆 벽에 바짝 붙어요', 2800);
+        else if (e.opened) guardSay('👮 “어? 문이 왜 열려 있지?” — 열린 문을 들여다봐요', 2400);
       } else if (e.type === 'enterRoom') {
         HG.sound.play('creak');
         guardSay('🔦 경비 아저씨가 교실을 살피러 들어갔어요. 지금이 기회!', 3000);
@@ -1717,11 +1737,14 @@
     const act = $('actBtn');
     const near = E.spotNear(h, h.player.x, h.player.z);
     const stairsNear = !nowHidden && near >= 0 && h.spots[near].kind === 'stairs';
+    const shut = !nowHidden && near < 0 && h.player.z > 0.3 ? E.doorNear(h, h.player.x, 0.8) : null;
+    const doorShut = shut != null && !E.isDoorOpen(h, shut);
     act.setAttribute('aria-pressed', String(nowHidden));
-    act.textContent = nowHidden ? (sp.kind === 'stairs' ? '올라가기' : '나가기') : stairsNear ? '계단으로' : '숨기';
-    act.classList.toggle('far', !nowHidden && near < 0);
-    // 경비원 모습·소리
+    act.textContent = nowHidden ? (sp.kind === 'stairs' ? '올라가기' : '나가기') : stairsNear ? '계단으로' : doorShut ? '문 열기' : '숨기';
+    act.classList.toggle('far', !nowHidden && near < 0 && !doorShut);
+    // 경비원 모습·소리, 미닫이문
     level.guard.sync(g, dt, game.t);
+    if (level.syncDoors) level.syncDoors(h, dt);
     const chase = E.hunting(g);
     $('danger').hidden = !chase;
     const dx = g.x - player.x;
@@ -2265,6 +2288,7 @@
     E.stepHall(titleHall, { vx: 0, vz: 0, hide: false }, dt);
     titleHall.events.length = 0;
     level.guard.sync(titleHall.guard, dt, game.t);
+    if (level.syncDoors) level.syncDoors(titleHall, dt);
     const k = game.t * 0.05;
     player.x = titleHall.startX - 3 + Math.sin(k) * 1.5;
     player.z = -0.3;

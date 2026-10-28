@@ -66,25 +66,90 @@
     return { doors, winHoles };
   }
 
-  /** 나가는 문: 수수께끼를 풀면 열리고 빛나요 */
-  function exitDoor(L, door, dx, label) {
+  /** 나가는 문: 자물쇠가 걸려 있어요. 수수께끼를 풀어 얻은 열쇠로 딸깍 열면 드르륵 열리고 빛나요.
+      opts.noLock: 자물쇠 없는 문 (신관 현관의 계단 쪽 문) */
+  function exitDoor(L, door, dx, label, opts) {
+    const o = opts || {};
     const text = label || '🚪 복도로 나가기';
-    L.tag(door, { action: 'exit', label: text, reach: 2.4 });
+    // 문짝과 빛나는 문 자리는 같은 이름표: 🔒 잠긴 문 → 🔑 열쇠로 문 열기 → 🚪 복도로 나가기
+    const infoDoor = { action: 'exit', label: o.noLock ? text : '🔒 잠긴 문' };
+    L.tag(door, infoDoor);
     const glow = new T.Mesh(new T.PlaneGeometry(1.1, 2.2), new T.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
     L.own(glow.material);
     glow.position.set(dx, 1.1, 0.03);
     L.scene.add(glow);
     // 문이 옆으로 열리면 문짝이 없어도 문 자리(빛나는 곳)를 누르면 나가요
-    L.tag(glow, { action: 'exit', label: text, reach: 2.4 });
+    L.tag(glow, infoDoor);
     L.exitAt = { x: dx };
     let open = 0;
     let opening = false;
     L.exitOpen = false;
+    L.openDoor = () => (opening = true);
     L.openExit = function () {
       opening = true;
       L.exitOpen = true;
+      infoDoor.label = text;
+    };
+    // 자물쇠와 열쇠 (문과 같이 움직여요)
+    const lockM = L.own(new T.MeshLambertMaterial({ color: 0xc9a227, emissive: 0x2a1f00 }));
+    const lock = new T.Group();
+    if (!o.noLock) {
+      const body = new T.Mesh(new T.BoxGeometry(0.1, 0.16, 0.04), lockM);
+      const hole = new T.Mesh(new T.BoxGeometry(0.022, 0.05, 0.01), M.black);
+      hole.position.z = 0.022;
+      lock.add(body, hole);
+      lock.position.set(-0.36, -0.02, 0.035);
+      door.add(lock);
+    }
+    const key = new T.Group();
+    const keyM = L.own(new T.MeshLambertMaterial({ color: 0xffd166, emissive: 0x4a3300 }));
+    const shaft = new T.Mesh(new T.BoxGeometry(0.022, 0.022, 0.14), keyM);
+    shaft.position.z = 0.07;
+    const bow = new T.Mesh(new T.TorusGeometry(0.04, 0.012, 6, 14), keyM);
+    bow.position.z = 0.17;
+    const tooth = new T.Mesh(new T.BoxGeometry(0.018, 0.04, 0.03), keyM);
+    tooth.position.set(0, -0.025, 0.03);
+    key.add(shaft, bow, tooth);
+    key.visible = false;
+    lock.add(key);
+    let keyReady = false;
+    let turn = -1; // 열쇠를 꽂고 돌리는 중 (초)
+    let onTurn = null;
+    let onOpen = null;
+    L.keyReady = () => {
+      keyReady = true;
+      infoDoor.label = '🔑 열쇠로 문 열기';
+    };
+    L.unlocking = false;
+    /** 딸깍: 열쇠를 꽂아 돌리고(onTurn), 문이 열리면(onOpen) */
+    L.unlockExit = function (turned, opened) {
+      if (L.unlocking || L.exitOpen) return;
+      L.unlocking = true;
+      onTurn = turned;
+      onOpen = opened;
+      turn = 0;
+      key.visible = true;
     };
     L.updaters.push((dt, t) => {
+      if (turn >= 0) {
+        turn += dt;
+        key.position.z = 0.16 - Math.min(1, turn / 0.35) * 0.12; // 꽂고
+        key.rotation.z = Math.min(1, Math.max(0, (turn - 0.45) / 0.3)) * (Math.PI / 2); // 돌려요
+        if (onTurn && turn >= 0.75) {
+          onTurn();
+          onTurn = null;
+        }
+        if (turn >= 1.15) {
+          turn = -1;
+          key.visible = false;
+          L.unlocking = false;
+          L.openExit();
+          if (onOpen) onOpen();
+          onOpen = null;
+        }
+      }
+      if (keyReady && !L.exitOpen) lockM.emissive.setRGB(0.35 + 0.25 * Math.sin(t * 5), 0.25 + 0.18 * Math.sin(t * 5), 0);
+      else lockM.emissive.setRGB(0.16, 0.12, 0);
       if (opening && open < 1) open = Math.min(1, open + dt * 1.5);
       door.position.x = dx + open * 0.85;
       glow.material.opacity = L.exitOpen ? 0.25 + 0.15 * Math.sin(t * 4) : 0;
@@ -989,7 +1054,8 @@
     const Wd = 9;
     const D = 6.5;
     const { doors } = shell(L, kit, { W: Wd, D, doors: [Wd / 2], floor: M.hallFloor, wall: M.wall, windows: false, farHoles: [{ a: Wd / 2 - 1.5, b: Wd / 2 + 1.5, y0: 0, y1: 2.45 }] });
-    exitDoor(L, doors[0], Wd / 2, '🪜 계단으로 (3층 연결통로)');
+    exitDoor(L, doors[0], Wd / 2, '🪜 계단으로 (3층 연결다리)', { noLock: true });
+    L.openDoor(); // 방금 내려온 계단 쪽 문은 열려 있어요
     // 유리문 너머: 셔터가 내려와 있어요 (아래 틈으로 달빛만)
     const yard = glowMat('yard', () => X.yard(), { tint: 0x8890b8 });
     kit.panel(3.2, 2.5, Wd / 2, 1.25, D + 0.7, Math.PI, yard);

@@ -449,6 +449,7 @@
   const HIDE_REACH = 1.1;
   const STAIRS_REACH = 1.7;
   const NOISE = 7; // 뛰는 발소리가 들리는 거리
+  const DOOR_NOISE = 5; // 드르륵: 미닫이문 여는 소리가 들리는 거리
   const SEE_HALF = 0.45; // 손전등 불빛의 반각 (라디안)
 
   const WIDE_ROOMS = ['도서관', '교무실', '과학실', '지능형과학실', '늘봄교실', '돌봄교실', '다이룸터', '몽글마루', '채움실', '나눔실', '정보실'];
@@ -686,6 +687,7 @@
 
   function resetHall(h) {
     h.player = { x: h.startX, z: 0, hidden: -1, hold: false, walking: false, running: false };
+    h.doorOpen = {}; // 들어갈 수 있는 실도 문은 처음엔 닫혀 있어요 (드르륵 열어야 해요)
     const g = h.guard;
     g.x = (g.min + g.max) / 2;
     g.z = 0;
@@ -726,9 +728,18 @@
     if (z <= Z_MAX) return z >= Z_MIN && x >= 0.5 && x <= h.length - 0.5;
     for (const r of h.rooms) {
       if (z >= ROOM_Z0 && z <= ROOM_Z1 && x >= r.ix0 && x <= r.ix1) return true;
-      if (z < ROOM_Z0 + 1e-9 && r.doors.some((d) => Math.abs(x - d) <= DOOR_HALF)) return true;
+      if (z < ROOM_Z0 + 1e-9 && r.doors.some((d) => Math.abs(x - d) <= DOOR_HALF && isDoorOpen(h, d))) return true;
     }
     return false;
+  }
+  /* 미닫이문: 열린 문만 지나갈 수 있어요. by = 'player' | 'guard' */
+  const doorKey = (d) => d.toFixed(2);
+  const isDoorOpen = (h, d) => !!(h.doorOpen && h.doorOpen[doorKey(d)]);
+  function openDoor(h, d, by) {
+    if (isDoorOpen(h, d)) return false;
+    h.doorOpen[doorKey(d)] = by;
+    h.events.push({ type: 'doorOpen', x: d, by });
+    return true;
   }
   /** 가까운 열린 교실 문 */
   function doorNear(h, x, reach) {
@@ -759,10 +770,16 @@
     const inZ = ROOM_Z0 + 0.15;
     if (ra) {
       const d = bestDoor(ra, ax, tx);
-      return Math.abs(ax - d) > 0.03 ? [d, Math.max(az, inZ)] : [d, 1.0];
+      if (Math.abs(ax - d) > 0.03) return [d, Math.max(az, inZ)];
+      openDoor(h, d, 'guard'); // 경비원도 문을 열고 다녀요
+      return [d, 1.0];
     }
     const d = bestDoor(rt, ax, tx);
-    return Math.abs(ax - d) < 0.03 && az > 0.97 ? [d, inZ] : [d, 1.0];
+    if (Math.abs(ax - d) < 0.03 && az > 0.97) {
+      openDoor(h, d, 'guard');
+      return [d, inZ];
+    }
+    return [d, 1.0];
   }
   function turnTo(g, ang, dt, rate) {
     const d = wrap(ang - g.ang);
@@ -826,6 +843,11 @@
   function setClue(h, x, z, why, noSpot) {
     const g = h.guard;
     const r = roomAt(h, x, z);
+    // 같은 실 안에서 언뜻 봤으면 그 자리로 곧장 가서 둘러봐요
+    if (r && why === 'glimpse' && regionOf(h, g.x, g.z) === r.cell) {
+      g.clue = { x, z: Math.max(ROOM_Z0, Math.min(ROOM_Z1, z)), why, spot: -1, room: -1 };
+      return;
+    }
     if (r) {
       g.clue = { x: bestDoor(r, g.x, x), z: 1.0, why, spot: -1, room: r.cell };
       return;
@@ -855,7 +877,10 @@
       return;
     }
     const room = h.rooms.find((r) => r.cell === c.room);
-    if (room) {
+    // 방금 뒤진 실은 또 뒤지지 않고 그 자리에서 둘러봐요 (같은 곳을 끝없이 맴돌지 않게)
+    const recent = room && g.searched && g.searched.cell === room.cell && h.t - g.searched.t < 12;
+    if (room && !recent) {
+      g.searched = { cell: room.cell, t: h.t };
       g.state = 'roomSearch';
       g.door = { x: bestDoor(room, g.x, c.x), cell: room.cell };
       g.timer = 3.5;
@@ -895,7 +920,9 @@
       if (p.hidden >= 0) unhide();
       else {
         const i = spotNear(h, p.x, p.z);
-        if (i >= 0) {
+        const dd = i < 0 && p.z > 0.3 ? doorNear(h, p.x, 0.8) : null;
+        if (dd != null) openDoor(h, dd, 'player'); // 문 앞에서 누르면 드르륵
+        else if (i >= 0) {
           // 경비원 눈앞에서 숨으면 경비원이 그걸 봐요
           const dist = Math.hypot(p.x - g.x, p.z - g.z);
           const seen = sight(h) > 0 || (hunting(g) && inCorridor(g) && regionOf(h, g.x, g.z) < 0 && dist < g.cone + 1);
@@ -913,8 +940,12 @@
     if (moving && p.hidden < 0) {
       // 열린 교실 문 앞에서 문 쪽으로 가면 문 가운데로 살짝 끌어 줘요
       const d = doorNear(h, p.x, 0.95);
-      if (d != null && ((vz > 0.2 && p.z > Z_MAX - 0.4 && p.z < ROOM_Z0) || (vz < -0.2 && p.z > Z_MAX - 0.05 && p.z < ROOM_Z0 + 0.45))) {
+      const pushIn = vz > 0.2 && p.z > Z_MAX - 0.4 && p.z < ROOM_Z0;
+      const pushOut = vz < -0.2 && p.z > Z_MAX - 0.05 && p.z < ROOM_Z0 + 0.45;
+      if (d != null && (pushIn || pushOut)) {
         vx += Math.max(-2.5, Math.min(2.5, (d - p.x) * 7));
+        // 닫힌 문을 밀면 드르륵 열려요
+        if (Math.abs(d - p.x) < 0.6 && ((pushIn && p.z > Z_MAX - 0.2) || (pushOut && p.z < ROOM_Z0 + 0.3))) openDoor(h, d, 'player');
       }
       const nx = p.x + vx * dt;
       const nz = p.z + vz * dt;
@@ -938,6 +969,14 @@
     if (g.cool > 0) g.cool -= dt;
     const pd = Math.hypot(p.x - g.x, p.z - g.z);
     const calm = !hunting(g) && inCorridor(g);
+    // 드르륵! 문 여는 소리가 들리면 그 문으로 살피러 와요
+    const creak = h.events.find((e) => e.type === 'doorOpen' && e.by === 'player');
+    if (creak && calm && Math.hypot(creak.x - g.x, 1.2 - g.z) < DOOR_NOISE && g.state !== 'goCheck' && g.state !== 'check') {
+      setClue(h, creak.x, 1.2, 'door');
+      g.state = 'listen';
+      g.timer = 0.6;
+      emit('heard', { door: true });
+    }
     // 뛰는 발소리가 들리면 소리 난 곳으로 살피러 와요
     if (p.running && p.hidden < 0 && calm && pd < NOISE && g.state !== 'goCheck' && g.state !== 'check' && g.state !== 'listen') {
       const fresh = !g.clue || Math.abs(g.clue.x - p.x) > 2;
@@ -971,13 +1010,15 @@
           g.state = 'enter';
           g.timer = 0.5;
           emit('enterRoom', { cell: door.cell });
-        } else if (peek && h.rnd() < g.checkChance * 0.5) {
+        } else if (peek && h.rnd() < (h.doorOpen[doorKey(peek.x)] === 'player' ? 0.85 : g.checkChance * 0.5)) {
+          // 아이들이 열어 둔 문은 "문이 왜 열려 있지?" 하고 거의 꼭 들여다봐요
+          const opened = h.doorOpen[doorKey(peek.x)] === 'player';
           g.x = peek.x;
           g.door = peek;
           g.state = 'peekRoom';
           g.timer = 2.6;
           g.phase = 0;
-          emit('peekRoom', { cell: peek.cell });
+          emit('peekRoom', { cell: peek.cell, opened });
         } else if (end) {
           g.x = g.face > 0 ? g.max : g.min;
           g.state = 'pause';
@@ -1023,7 +1064,7 @@
           g.state = 'return';
           break;
         }
-        const tz = c.z < WALL_Z ? Math.max(Z_MIN, Math.min(Z_MAX - 0.15, c.z)) : c.z;
+        const tz = c.z < WALL_Z || !roomAt(h, c.x, c.z) ? Math.max(Z_MIN, Math.min(Z_MAX - 0.15, c.z)) : c.z;
         if (walkTo(h, g, c.x, tz, g.speed * 1.5, dt)) searchAt(h, emit);
         break;
       }
@@ -1389,6 +1430,9 @@
     hunting,
     roomAt,
     walkable,
+    isDoorOpen,
+    openDoor,
+    doorNear,
     spotNear,
     route,
     // 확인

@@ -662,6 +662,14 @@
 
     // 교실 쪽 벽 (z = +1.5)
     const roomWindows = {};
+    L.slideDoors = [];
+    /** 미닫이문을 core 의 문 상태(열림·닫힘)에 맞춰 옆으로 밀어요 */
+    L.syncDoors = function (h, dt) {
+      L.slideDoors.forEach((d) => {
+        const target = d.x + (E.isDoorOpen(h, d.x) ? 0.96 : 0);
+        d.mesh.position.x += (target - d.mesh.position.x) * Math.min(1, dt * 7);
+      });
+    };
     const doorsOpen = new Set([].concat(...hall.rooms.map((r) => r.doors)).map((x) => Math.round(x * 10)));
     hall.cells.forEach((c) => buildCellFront(L, kit, c, hall, run, doorsOpen, roomWindows, wallM));
 
@@ -1114,10 +1122,16 @@
       kit.box(1.08, 0.06, 0.12, dx, 2.13, HW, M.darkWood);
       kit.box(0.05, 2.1, 0.12, dx - 0.52, 1.05, HW, M.darkWood);
       kit.box(0.05, 2.1, 0.12, dx + 0.52, 1.05, HW, M.darkWood);
-      // 문 (열린 문은 옆으로 밀려 있어요)
-      const shift = open ? 0.96 : 0;
-      kit.panel(1.0, 2.08, dx + shift, 1.04, HW + 0.05, Math.PI, i ? M.doorDark : M.door);
-      if (openRoom) return;
+      // 문: 들어갈 수 있는 실은 미닫이문이 드르륵 열려요 (처음엔 닫혀 있어요)
+      if (openRoom) {
+        const dm = new T.Mesh(rect(1.0, 2.08, 0, 0, 1, 1), i ? M.doorDark : M.door);
+        dm.position.set(dx, 1.04, HW + 0.05);
+        dm.rotation.y = Math.PI;
+        L.scene.add(dm);
+        L.slideDoors.push({ x: dx, mesh: dm });
+        return;
+      }
+      kit.panel(1.0, 2.08, dx + (open ? 0.96 : 0), 1.04, HW + 0.05, Math.PI, i ? M.doorDark : M.door);
       // 잠긴 실: 문고리에 자물쇠
       if (lockedRoom && lockedRoom.why !== 'done') {
         kit.box(0.16, 0.05, 0.05, dx + 0.36, 1.05, HW - 0.01, M.darkMetal);

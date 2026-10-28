@@ -319,6 +319,11 @@
         tone({ type: 'sine', f: 70, to: 45, dur: 0.12, vol: 0.4 });
         tone({ type: 'sine', f: 65, to: 42, dur: 0.12, vol: 0.3, at: 0.18 });
       },
+      // 드르륵: 미닫이문 여는 소리
+      slide: () => {
+        noise({ f: 420, to: 260, dur: 0.5, vol: 0.13, q: 3 });
+        tone({ type: 'sawtooth', f: 70, to: 58, dur: 0.45, vol: 0.04, lowpass: 400, vib: { rate: 30, depth: 8 } });
+      },
       // 철컹! 쇠문이 닫히는 소리
       clang: () => {
         tone({ type: 'square', f: 196, to: 180, dur: 0.9, vol: 0.06, lowpass: 2200 });
