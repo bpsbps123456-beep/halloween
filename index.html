@@ -158,6 +158,59 @@
 
   .share-btn { margin-top: 16px; }
 
+  /* 비밀 게임: 비밀번호를 넣어야 무슨 게임인지 보여요 */
+  .lock-face { display: none; }
+  .game-card.locked .thumb,
+  .game-card.locked .card-body { display: none; }
+  .game-card.locked { display: flex; }
+  .game-card.locked .lock-face {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 300px;
+    padding: 24px 18px;
+    text-align: center;
+    background: radial-gradient(circle at 50% 35%, rgba(255, 138, 31, 0.16), transparent 60%), var(--bg-raised);
+  }
+  .lock-no { margin: 0; color: var(--mint); font-size: 15px; letter-spacing: 0.08em; }
+  .lock-q {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 84px;
+    line-height: 1;
+    color: var(--pumpkin);
+    text-shadow: 0 0 0.35em rgba(255, 138, 31, 0.55);
+    animation: lockBob 2.4s ease-in-out infinite;
+  }
+  @keyframes lockBob { 50% { transform: translateY(-6px) rotate(-3deg); } }
+  .lock-hint { margin: 0; color: var(--text-dim); font-size: 15px; }
+  .lock-form { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .lock-form input {
+    width: 7.5em;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--bg-card);
+    box-shadow: inset 0 0 0 2px var(--line);
+    color: var(--text);
+    font: inherit;
+    font-size: 22px;
+    letter-spacing: 0.3em;
+    text-align: center;
+  }
+  .lock-form input:focus-visible { outline: 3px solid var(--candle); outline-offset: 2px; }
+  .lock-msg { min-height: 1.4em; margin: 0; color: var(--candle); font-size: 15px; }
+  .lock-face.shake { animation: lockShake 0.4s; }
+  @keyframes lockShake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+  .game-card.opened { animation: cardOpen 0.9s ease; }
+  @keyframes cardOpen { from { transform: scale(0.94) rotateY(70deg); filter: brightness(2); } to { transform: none; filter: none; } }
+  .relock { margin: 0 0 30px; text-align: right; }
+  .relock button { border: 0; background: none; color: var(--text-dim); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; }
+  @media (prefers-reduced-motion: reduce) { .lock-q, .game-card.opened { animation: none; } }
+
   /* 학생 기기로 열기: QR 코드는 흰 바탕이어야 잘 읽혀요 */
   .share {
     width: min(440px, calc(100vw - 32px));
@@ -196,7 +249,7 @@
   .share .row { justify-content: center; }
 
   @media (max-width: 520px) {
-    .game-card.wide { grid-template-columns: 1fr; }
+    .game-card.wide, .game-card.wide.locked { grid-template-columns: 1fr; }
     .game-card.wide .thumb { aspect-ratio: 16 / 9; min-height: 0; }
   }
 </style>
@@ -209,7 +262,7 @@
 <div class="wrap">
   <div class="intro">
     <h1>할로윈 게임 파티</h1>
-    <p>추억의 플래시 게임 두 개를 할로윈 버전으로 바꿨어요. 혼자서 기록에 도전하고, 명예의 전당에 이름을 남겨 보세요.</p>
+    <p>할로윈 밤, 비밀 게임 3개가 잠겨 있어요. 선생님이 알려 주는 비밀번호로 하나씩 열어 보세요!</p>
     <button class="btn share-btn" id="shareBtn" type="button" hidden>📱 학생 기기로 열기</button>
   </div>
 
@@ -231,7 +284,17 @@
       <p>한 명씩 돌아가며 최고 기록에 도전해요</p>
     </div>
     <div class="cards">
-      <article class="game-card" data-game="hobak">
+      <article class="game-card locked" data-game="hobak">
+        <div class="lock-face">
+          <p class="lock-no">비밀 게임 1</p>
+          <p class="lock-q" aria-hidden="true">?</p>
+          <p class="lock-hint">🔒 비밀번호를 넣으면 무슨 게임인지 보여요</p>
+          <form class="lock-form" autocomplete="off">
+            <input inputmode="numeric" maxlength="4" pattern="[0-9]*" placeholder="····" aria-label="비밀 게임 1 비밀번호" enterkeyhint="done">
+            <button class="btn" type="submit">열기</button>
+          </form>
+          <p class="lock-msg" aria-live="polite"></p>
+        </div>
         <canvas class="thumb" data-thumb="hobak" aria-hidden="true"></canvas>
         <div class="card-body">
           <p class="origin">원작 · 고군분투</p>
@@ -247,7 +310,17 @@
         </div>
       </article>
 
-      <article class="game-card" data-game="jukrim">
+      <article class="game-card locked" data-game="jukrim">
+        <div class="lock-face">
+          <p class="lock-no">비밀 게임 2</p>
+          <p class="lock-q" aria-hidden="true">?</p>
+          <p class="lock-hint">🔒 비밀번호를 넣으면 무슨 게임인지 보여요</p>
+          <form class="lock-form" autocomplete="off">
+            <input inputmode="numeric" maxlength="4" pattern="[0-9]*" placeholder="····" aria-label="비밀 게임 2 비밀번호" enterkeyhint="done">
+            <button class="btn" type="submit">열기</button>
+          </form>
+          <p class="lock-msg" aria-live="polite"></p>
+        </div>
         <canvas class="thumb" data-thumb="jukrim" aria-hidden="true"></canvas>
         <div class="card-body">
           <p class="origin">원작 · 죽림고수</p>
@@ -271,7 +344,17 @@
       <span class="tag">멀티플레이</span>
       <p>친구와 같이 하는 게임</p>
     </div>
-    <article class="game-card wide" data-game="escape">
+    <article class="game-card wide locked" data-game="escape">
+      <div class="lock-face">
+        <p class="lock-no">비밀 게임 3</p>
+        <p class="lock-q" aria-hidden="true">?</p>
+        <p class="lock-hint">🔒 비밀번호를 넣으면 무슨 게임인지 보여요</p>
+        <form class="lock-form" autocomplete="off">
+          <input inputmode="numeric" maxlength="4" pattern="[0-9]*" placeholder="····" aria-label="비밀 게임 3 비밀번호" enterkeyhint="done">
+          <button class="btn" type="submit">열기</button>
+        </form>
+        <p class="lock-msg" aria-live="polite"></p>
+      </div>
       <canvas class="thumb" data-thumb="escape" aria-hidden="true"></canvas>
       <div class="card-body">
         <p class="origin">3D 모둠 방탈출 · 화이트데이처럼 몰래몰래</p>
@@ -284,7 +367,7 @@
           <li>30~40분</li>
         </ul>
         <p class="best" id="best-escape"></p>
-        <a class="btn" href="multi/escape/index.html?v=17">동암초 탈출 시작</a>
+        <a class="btn" id="escapeLink" href="multi/escape/index.html?v=17">동암초 탈출 시작</a>
       </div>
     </article>
   </section>
@@ -292,7 +375,7 @@
   <dl class="tips">
     <div>
       <dt>기록은 어디에 남나요?</dt>
-      <dd>이 컴퓨터의 브라우저에만 저장돼요. 다른 컴퓨터와는 따로따로예요.</dd>
+      <dd>혼자 하기 기록은 이 컴퓨터의 브라우저에만 저장돼요. 함께 하기는 선생님이 구글 시트를 연결하면 반 전체 기록이 한곳에 모여요.</dd>
     </div>
     <div>
       <dt>큰 화면으로 하려면</dt>
@@ -303,6 +386,7 @@
       <dd>게임 오른쪽 위 🔊 버튼이나 M 키로 끄고 켤 수 있어요.</dd>
     </div>
   </dl>
+  <p class="relock"><button id="relockBtn" type="button">🔒 이 기기에서 다시 잠그기 (선생님용)</button></p>
 </div>
 
 <script src="assets/common.js"></script>
@@ -313,6 +397,86 @@
   const art = HG.art;
   const TAU = Math.PI * 2;
   const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- 비밀 게임: 비밀번호를 맞히면 열려요 (이 기기에 기억) ----
+     비밀번호는 글자 그대로 두지 않고 지문(해시)만 적어 두어요. */
+  const LOCK_KEY = 'hub:unlocked';
+  const PRINT = { hobak: 'a126f816', jukrim: '4644c41d', escape: '3b31d124' };
+  const fingerprint = (game, pw) => {
+    let h = 0x811c9dc5;
+    for (const ch of 'halloween-party:' + game + ':' + pw) {
+      h ^= ch.codePointAt(0);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8, '0');
+  };
+  const unlocked = Object.assign({}, HG.store.get(LOCK_KEY, {}));
+  const isOpen = (game) => !!unlocked[game];
+  document.querySelectorAll('.game-card').forEach((card) => {
+    const game = card.dataset.game;
+    if (isOpen(game)) {
+      card.classList.remove('locked');
+      return;
+    }
+    const face = card.querySelector('.lock-face');
+    const form = face.querySelector('form');
+    const input = form.querySelector('input');
+    const msg = face.querySelector('.lock-msg');
+    let wrong = 0;
+    let waitUntil = 0;
+    let timer = null;
+    const countdown = () => {
+      const left = Math.ceil((waitUntil - Date.now()) / 1000);
+      if (left > 0) {
+        msg.textContent = '⏳ ' + left + '초 뒤에 다시 해 봐요';
+        timer = setTimeout(countdown, 250);
+      } else {
+        msg.textContent = '';
+        input.disabled = false;
+      }
+    };
+    input.addEventListener('input', () => (input.value = input.value.replace(/\D/g, '').slice(0, 4)));
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (Date.now() < waitUntil) return;
+      const pw = input.value.trim();
+      if (!pw) return input.focus();
+      if (fingerprint(game, pw) === PRINT[game]) {
+        unlocked[game] = true;
+        HG.store.set(LOCK_KEY, unlocked);
+        HG.sound.play('unlock');
+        setTimeout(() => HG.sound.play('gold'), 250);
+        card.classList.remove('locked');
+        card.classList.add('opened');
+        const th = thumbs.find((x) => x.c.parentNode === card);
+        if (th) th.visible = true;
+        if (still) redraw();
+        return;
+      }
+      wrong++;
+      HG.sound.play('wrong');
+      face.classList.remove('shake');
+      void face.offsetWidth;
+      face.classList.add('shake');
+      input.select();
+      if (wrong % 3 === 0) {
+        // 마구 눌러 보지 않게: 세 번 틀리면 30초 쉬어요
+        waitUntil = Date.now() + 30000;
+        input.disabled = true;
+        clearTimeout(timer);
+        countdown();
+      } else msg.textContent = '틀렸어요! 다시 생각해 봐요';
+    });
+  });
+  document.getElementById('relockBtn').addEventListener('click', () => {
+    HG.store.set(LOCK_KEY, {});
+    location.reload();
+  });
+
+  /* 우리 반 주소(#t-…)로 열었으면 그 설정을 동암초 탈출로 넘겨줘요 (이 기기에 기억) */
+  const classHash = /^#t-[\w-]+$/.test(location.hash) ? location.hash : HG.store.get('hub:classHash', '');
+  if (/^#t-/.test(location.hash)) HG.store.set('hub:classHash', location.hash);
+  if (classHash) document.getElementById('escapeLink').href += classHash;
 
   /* 최고 기록 */
   const hob = HG.board.best('hobak');
@@ -343,7 +507,7 @@
   const QR_LIB = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
   const shareBtn = document.getElementById('shareBtn');
   const dialog = document.getElementById('shareDialog');
-  const pageUrl = location.origin + location.pathname.replace(/index\.html$/, '');
+  const pageUrl = location.origin + location.pathname.replace(/index\.html$/, '') + (classHash || '');
   const local = ['localhost', '127.0.0.1', ''].indexOf(location.hostname) >= 0;
   shareBtn.hidden = !/^https?:$/.test(location.protocol) || local || window.self !== window.top || !dialog.showModal;
 
@@ -463,7 +627,8 @@
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#1a1028';
     });
-    // 왼쪽: 거미줄 그네 타는 호박군
+    // 왼쪽: 거미줄 그네 타는 호박군 (그 게임을 열었을 때만)
+    if (!isOpen('hobak')) return drawSkyGhost(ctx, vw, t);
     const ax = vw * 0.2;
     const ay = 70;
     const sw = still ? 0.5 : Math.sin(t * 1.6) * 0.55;
@@ -477,7 +642,11 @@
     ctx.stroke();
     art.lantern(ctx, ax, ay + 15, t, {});
     art.pumpkinBoy(ctx, hx, hy, { t, pose: 'swing', rot: -sw });
-    // 오른쪽: 화살 피하는 꼬마 유령
+    drawSkyGhost(ctx, vw, t);
+  }
+  /** 오른쪽: 화살 피하는 꼬마 유령 (그 게임을 열었을 때만) */
+  function drawSkyGhost(ctx, vw, t) {
+    if (!isOpen('jukrim')) return;
     const gx = vw * 0.8;
     const gy = 150 + Math.sin(t * 2) * 8;
     art.ghost(ctx, gx, gy, { t, r: 24, tilt: Math.sin(t) * 0.12 });
@@ -637,7 +806,7 @@
   const thumbs = Array.from(document.querySelectorAll('.thumb')).map((c) => ({
     c,
     draw: DRAW[c.dataset.thumb],
-    visible: true,
+    visible: isOpen(c.dataset.thumb),
   }));
 
   function frame(now) {
@@ -654,7 +823,7 @@
     const io = new IntersectionObserver((list) => {
       list.forEach((e) => {
         const th = thumbs.find((x) => x.c === e.target);
-        if (th) th.visible = e.isIntersecting;
+        if (th) th.visible = e.isIntersecting && isOpen(th.c.dataset.thumb);
       });
     });
     thumbs.forEach((th) => io.observe(th.c));
