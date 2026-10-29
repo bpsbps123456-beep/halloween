@@ -1,4 +1,4 @@
-/* 동암초 탈출 3D — 진행, 조작(걷기·둘러보기·누르기), 방 수수께끼, 복도 몰래 가기, 현관 탈출 */
+/* 할로윈 나이트: 6-3 대탈출 (3D) — 진행, 조작(걷기·둘러보기·누르기), 방 수수께끼, 복도 몰래 가기, 현관 탈출 */
 (function () {
   'use strict';
 
@@ -39,6 +39,8 @@
   // 선생님 링크로 한 번 열면 이 기기에 기억해서, 다음에 게임 목록에서 들어와도 같은 설정이에요
   if (linkSettings()) HG.store.set(SETTINGS, settings);
   const shortName = (s) => s.replace('초등학교', '초');
+  /** 게임 이름: 할로윈 나이트: 6-3 대탈출 (반은 선생님 설정에서) */
+  const gameName = () => '할로윈 나이트: ' + settings.myClass + ' 대탈출';
 
   HG.bindMuteButton($('muteBtn'));
   HG.bindFullscreenButton($('fullBtn'));
@@ -290,10 +292,11 @@
 
   /* ---------------- 시작 / 이어하기 ---------------- */
   function paintTitle() {
-    $('titleName').textContent = shortName(settings.school) + ' 탈출';
-    document.querySelector('.game-bar h1').firstChild.textContent = shortName(settings.school) + ' 탈출';
+    $('titleName').textContent = gameName();
+    document.querySelector('.game-bar h1').firstChild.textContent = gameName();
+    document.title = gameName();
     $('titleStory').textContent =
-      '할로윈 밤, ' + (settings.teacher ? settings.teacher + ' 선생님 반(' + settings.myClass + ')' : settings.myClass) + ' 교실에서 깜빡 잠들었다 깨어 보니 학교 문이 모두 잠겼어요! 장난꾸러기 유령 ‘부’가 방마다 수수께끼와 숫자를 숨겨 두었대요. ' +
+      '할로윈 밤, ' + (settings.teacher ? settings.teacher + ' 선생님 반(' + settings.myClass + ')' : settings.myClass) + ' 교실에서 깜빡 잠들었다 깨어 보니 학교 문이 모두 잠겼어요! 장난꾸러기 꼬마 유령이 방마다 수수께끼와 숫자를 숨겨 두었대요. ' +
       '손전등을 든 경비 아저씨를 피해 복도를 몰래 지나고, 숫자를 모아 중앙 현관 자물쇠를 열어요.';
     const saved = loadSave();
     const rb = $('resumeBtn');
@@ -793,7 +796,7 @@
 
   /* ---------------- 신관 1층 현관: 잠겼어요! (화이트데이처럼 돌아서 가야 해요) ----------------
      교실을 나와 1층 현관으로 내려왔지만 쇠사슬과 셔터로 막혀 있어요.
-     유령 부가 나타나 3층 연결통로로 본관에 건너가라고 알려 줘요. */
+     꼬마 유령이 나타나 3층 연결다리로 본관에 건너가라고 알려 줘요. */
   function startLobby() {
     closePanel();
     ['peek', 'peekLabel', 'danger', 'guardTalk'].forEach((id) => ($(id).hidden = true));
@@ -819,7 +822,7 @@
             }, 2600);
           } else say('꿈쩍도 안 해… 계단으로 올라가서 본관으로 가자!', 2600);
         } else if (info.action === 'note') {
-          openPanel('유령 부의 쪽지', (b) => {
+          openPanel('꼬마 유령의 쪽지', (b) => {
             b.append(el('p', 'q', '“신관 현관은 내가 잠갔지롱! 진짜 출구는 본관 중앙 현관 👻”'));
             b.append(el('p', 'step', '대피 안내도를 보면 신관과 본관은 3층 연결통로로 이어져 있어요.'));
           });
@@ -918,7 +921,8 @@
     HG.sound.stopMusic();
     const friends = run.friends || [];
     const maker = run.teacher || run.myClass + ' 담임 선생님';
-    $('opTitleName').textContent = shortName(settings.school) + ' 탈출';
+    $('opTitleName').textContent = '할로윈 나이트';
+    $('opSub').textContent = '— ' + run.myClass + ' 대탈출 —';
     $('opMotto').textContent = run.motto ? '“' + run.motto + '”  ·  ' + run.myClass : run.school + ' ' + run.myClass;
     const plan = [
       [0.4, () => (opCaption('10월 31일, 할로윈 밤'), HG.sound.play('tick'))],
@@ -932,7 +936,7 @@
       [13.4, () => (opHall(run), opFade(false))],
       [14.0, () => opCredit('출연', run.myClass + ' 친구들', friends.length ? friends : ['우리 반 친구 모두'])],
       [19.6, () => opCredit(null)],
-      [20.4, () => (run.noisy && run.noisy.length ? opCredit('특별 출연 (칠판에 이름 적힌 사람)', run.noisy.join('  ·  ')) : opCredit('특별 출연', '경비 아저씨  ·  유령 부'))],
+      [20.4, () => (run.noisy && run.noisy.length ? opCredit('특별 출연 (칠판에 이름 적힌 사람)', run.noisy.join('  ·  ')) : opCredit('특별 출연', '경비 아저씨  ·  꼬마 유령'))],
       [23.4, () => (opCredit(null), HG.sound.play('heart'))],
       [24.2, () => (opFade(true), HG.sound.stopMusic())],
       [25.2, () => (($('opTitle').hidden = false), HG.sound.play('boo'))],

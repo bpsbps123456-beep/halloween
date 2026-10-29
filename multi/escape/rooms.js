@@ -1,4 +1,4 @@
-/* 동암초 탈출 — 3D 방 안 (교실·과학실·도서관·방송실·교무실·보건실·중앙 현관·운동장)
+/* 할로윈 나이트(6-3 대탈출) — 3D 방 안 (교실·과학실·도서관·방송실·교무실·보건실·중앙 현관·운동장)
    방 좌표: x 0~W(왼쪽 벽 → 오른쪽 벽), z 0(복도 쪽 문 벽) ~ D(창문 벽). 들어오면 +z 쪽을 봐요.
    누를 수 있는 물건은 L.tag(물건, { action, label, reach }) 로 표시하고, game.js 가 action 을 보고 수수께끼를 열어요. */
 (function () {
@@ -157,7 +157,7 @@
     L.spawn = { x: dx, z: 0.9, yaw: Math.PI };
   }
 
-  /** 꼬마 유령 부: 둥실둥실 */
+  /** 꼬마 유령: 둥실둥실 */
   function ghost(L, x, y, z) {
     const g = W3.sprite('ghost', () => X.ghost(), 0.7, 0.7);
     g.position.set(x, y, z);
@@ -1093,7 +1093,7 @@
     const tape = tmat('tapeKeepOut', () => X.label('출입 금지  ✖  출입 금지', '#ffd23f', '#1b1b1b'), { clamp: true, mat: { alphaTest: 0.5 } });
     kit.add(W3.rect(3.4, 0.22, 0, 0, 1, 1), tape, Wd / 2, 1.5, D - 0.2, Math.PI, 0, 0.42);
     kit.add(W3.rect(3.4, 0.22, 0, 0, 1, 1), tape, Wd / 2, 1.5, D - 0.21, Math.PI, 0, -0.42);
-    const note = tmat('booNote', () => X.booNote(['신관 현관은', '내가 잠갔지롱!', '진짜 출구는', '본관 중앙 현관', '- 유령 부 👻'], 7), { clamp: true });
+    const note = tmat('booNote', () => X.booNote(['신관 현관은', '내가 잠갔지롱!', '진짜 출구는', '본관 중앙 현관', '- 꼬마 유령 👻'], 7), { clamp: true });
     const nm = new T.Mesh(W3.rect(0.42, 0.56, 0, 0, 1, 1), note);
     nm.position.set(Wd / 2 + 0.85, 1.65, D - 0.22);
     nm.rotation.y = Math.PI;
@@ -1114,7 +1114,7 @@
     kit.cyl(0.18, 0.16, 0.55, Wd - 1.2, 0.28, D - 0.5, M.metal, 12);
     kit.build(L.scene);
     candleLight(L, Wd / 2, 2.0, D - 1.0, 0xa8b8ff, 1.0);
-    // 유령 부: 처음엔 숨어 있다가 문을 흔들면 나타나요
+    // 꼬마 유령: 처음엔 숨어 있다가 문을 흔들면 나타나요
     const boo = ghost(L, Wd / 2 - 1.9, 1.9, D - 1.4);
     boo.visible = false;
     L.ghostLight.visible = false;

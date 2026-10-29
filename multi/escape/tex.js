@@ -1,4 +1,4 @@
-/* 동암초 탈출 — 3D 학교에 입힐 그림(텍스처)을 코드로 그려요. 그림 파일이 하나도 없어요.
+/* 할로윈 나이트(6-3 대탈출) — 3D 학교에 입힐 그림(텍스처)을 코드로 그려요. 그림 파일이 하나도 없어요.
    모두 캔버스를 돌려주고, world.js 가 THREE 텍스처로 바꿔요. */
 (function () {
   'use strict';
@@ -927,7 +927,7 @@
     else chalk(g, o.school + ' ' + o.myClass, 270, 156, 24, '#d6f5ff');
     chalk(g, '★ 사탕 나눔 6교시   ★ 분장 대회 강당', 270, 198, 22, '#ffd0e6');
     // 떠든 사람 (정 표시)
-    const noisy = o.noisy && o.noisy.length ? o.noisy.slice(0, 4) : ['유령 부'];
+    const noisy = o.noisy && o.noisy.length ? o.noisy.slice(0, 4) : ['꼬마 유령'];
     g.strokeStyle = 'rgba(244,241,230,0.75)';
     g.lineWidth = 3;
     g.strokeRect(40, 226, 470, 136);
@@ -949,7 +949,7 @@
     tokens(g, form.concat(['=', '?']), 910, 146, 60, '#f4f1e6', 'chalk');
     chalk(g, '교실에 숨은 것들을 모두 세어 봐!', 910, 232, 30, '#d6f5ff');
     chalk(g, '답은 ' + (o.teacher ? o.teacher + ' ' : '') + '선생님 책상 서랍 비밀번호', 910, 284, 26, '#ffd0e6');
-    chalk(g, '— 유령 부', 1180, 330, 24, '#ffd0e6');
+    chalk(g, '— 꼬마 유령', 1180, 330, 24, '#ffd0e6');
     g.fillStyle = 'rgba(255,255,255,0.7)';
     g.fillRect(70, 372, 30, 6);
     g.fillRect(1180, 372, 22, 6);
@@ -1280,7 +1280,7 @@
     return c;
   };
 
-  /** 유령 부가 붙여 둔 쪽지 (손글씨 줄) */
+  /** 꼬마 유령이 붙여 둔 쪽지 (손글씨 줄) */
   X.booNote = function (lines) {
     const { c, g } = paper(384, 512, '#fff59a');
     lines.forEach((ln, i) => txt(g, ln, 192, 80 + i * 82, i === lines.length - 1 ? 34 : 40, i === lines.length - 1 ? '#7a4ad0' : '#1b2233', { font: DISPLAY(), maxW: 350 }));
@@ -1569,7 +1569,7 @@
     g.fillRect(0, 0, 16, 256);
     return c;
   };
-  /** 꼬마 유령 '부' */
+  /** 꼬마 유령 */
   X.ghost = function () {
     const c = make(256, 256);
     const g = c.getContext('2d');

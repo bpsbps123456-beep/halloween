@@ -138,6 +138,8 @@
   .card-body .btn { align-self: flex-start; margin-top: auto; font-size: 18px; }
 
   .game-card[data-game="escape"] h3 { color: var(--candle); }
+  .game-card h3 small { display: block; margin-top: 4px; font-size: 0.62em; color: var(--pumpkin); }
+  section[id] { scroll-margin-top: 16px; }
   /* 함께 하기: 그림이 왼쪽, 설명이 오른쪽인 넓은 카드 */
   .game-card.wide { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
   .game-card.wide .thumb { height: 100%; min-height: 220px; aspect-ratio: auto; }
@@ -180,15 +182,38 @@
   @keyframes ttWrite { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
   .tt-list { margin: 0; padding: 0; list-style: none; }
   .tt-list li {
+    border-bottom: 2px dashed rgba(244, 241, 230, 0.16);
+    animation: ttIn 0.65s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+    animation-delay: calc(0.9s + var(--i) * 0.38s);
+  }
+  .tt-row {
     display: grid;
     grid-template-columns: 4.6em 2.2em 1fr;
     align-items: center;
     gap: 6px 14px;
     padding: 10px 6px;
-    border-bottom: 2px dashed rgba(244, 241, 230, 0.16);
-    animation: ttIn 0.65s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
-    animation-delay: calc(0.9s + var(--i) * 0.38s);
+    border-radius: 12px;
+    color: inherit;
+    text-decoration: none;
   }
+  a.tt-row { cursor: pointer; transition: background 0.2s; }
+  a.tt-row:hover, a.tt-row:focus-visible { background: rgba(255, 209, 102, 0.12); outline: none; }
+  .tt-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .tt-desc { color: rgba(244, 241, 230, 0.72); font-size: clamp(14px, 1.8vw, 16px); line-height: 1.4; }
+  .tt-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: rgba(244, 241, 230, 0.12);
+    color: rgba(244, 241, 230, 0.8);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-style: normal;
+    vertical-align: middle;
+    text-shadow: none;
+  }
+  li.game .tt-tag { background: rgba(255, 209, 102, 0.22); color: var(--candle); }
   .tt-list li:last-child { border-bottom: 0; }
   @keyframes ttIn { from { opacity: 0; transform: translateX(48px) rotate(1.5deg); filter: blur(5px); } to { opacity: 1; transform: none; filter: none; } }
   .tt-no {
@@ -215,6 +240,7 @@
     color: #f4f1e6;
     overflow-wrap: anywhere;
   }
+  .tt-list li.game .tt-name { color: var(--candle); }
   .tt-list li.last .tt-name { color: var(--pumpkin); text-shadow: 0 0 0.3em rgba(255, 138, 31, 0.5); }
   .tt-ghost {
     position: absolute;
@@ -366,11 +392,11 @@
       <h2 id="tt-title"><b>🎃</b> 할로윈 시간표</h2>
       <p class="tt-stamp" aria-hidden="true">HAPPY HALLOWEEN</p>
       <ol class="tt-list">
-        <li style="--i: 0"><span class="tt-no">1교시</span><span class="tt-icon" aria-hidden="true">🍫</span><span class="tt-name">초콜릿을 던져라</span></li>
-        <li style="--i: 1"><span class="tt-no">2교시</span><span class="tt-icon" aria-hidden="true">🧟</span><span class="tt-name">좀비를 이겨라</span></li>
-        <li style="--i: 2"><span class="tt-no">3교시</span><span class="tt-icon" aria-hidden="true">⚔️</span><span class="tt-name">할로윈 검투사</span></li>
-        <li style="--i: 3"><span class="tt-no">4교시</span><span class="tt-icon" aria-hidden="true">🧛</span><span class="tt-name">물리면 죽는다</span></li>
-        <li class="last" style="--i: 4"><span class="tt-no">5교시</span><span class="tt-icon" aria-hidden="true">🚪</span><span class="tt-name">6-3반 탈출기</span></li>
+        <li style="--i: 0"><div class="tt-row"><span class="tt-no">1교시</span><span class="tt-icon" aria-hidden="true">🍫</span><span class="tt-main"><span class="tt-name">초콜릿을 던져라 <em class="tt-tag">교실</em></span><span class="tt-desc">교실 호박통에 간식을 던져 넣은 만큼 가져가요</span></span></div></li>
+        <li class="game" style="--i: 1"><a class="tt-row" href="#zombie"><span class="tt-no">2교시</span><span class="tt-icon" aria-hidden="true">🧟</span><span class="tt-main"><span class="tt-name">좀비를 이겨라 <em class="tt-tag">🎮 비밀 게임 1·2</em></span><span class="tt-desc">좀비(선생님)의 기록을 이겨라! 아래 비밀 게임으로 도전해요</span></span></a></li>
+        <li style="--i: 2"><div class="tt-row"><span class="tt-no">3교시</span><span class="tt-icon" aria-hidden="true">⚔️</span><span class="tt-main"><span class="tt-name">할로윈 검투사 <em class="tt-tag">교실</em></span><span class="tt-desc">안대를 하고 우리 반 무기로 맞혀요</span></span></div></li>
+        <li style="--i: 3"><div class="tt-row"><span class="tt-no">4교시</span><span class="tt-icon" aria-hidden="true">🦷</span><span class="tt-main"><span class="tt-name">물리면 죽는다 <em class="tt-tag">강당</em></span><span class="tt-desc">첫 좀비는 선생님! 닿으면 감염, 끝까지 살아남아요</span></span></div></li>
+        <li class="game last" style="--i: 4"><a class="tt-row" href="#escape"><span class="tt-no">5교시</span><span class="tt-icon" aria-hidden="true">🚪</span><span class="tt-main"><span class="tt-name">할로윈 나이트: 6-3 대탈출 <em class="tt-tag">🎮 비밀 게임 3</em></span><span class="tt-desc">모둠이 함께 경비 아저씨를 피해 학교를 탈출해요</span></span></a></li>
       </ol>
       <span class="tt-ghost" aria-hidden="true">👻</span>
     </div>
@@ -390,11 +416,11 @@
     </div>
   </dialog>
 
-  <section aria-labelledby="single-title">
+  <section id="zombie" aria-labelledby="single-title">
     <div class="section-head">
-      <h2 id="single-title">혼자 하기</h2>
-      <span class="tag">싱글플레이</span>
-      <p>한 명씩 돌아가며 최고 기록에 도전해요</p>
+      <h2 id="single-title">2교시 · 좀비를 이겨라</h2>
+      <span class="tag">🎮 혼자 하기</span>
+      <p>좀비(선생님)의 기록을 이겨라! 한 명씩 돌아가며 도전해요</p>
     </div>
     <div class="cards">
       <article class="game-card locked" data-game="hobak">
@@ -451,11 +477,11 @@
     </div>
   </section>
 
-  <section aria-labelledby="multi-title">
+  <section id="escape" aria-labelledby="multi-title">
     <div class="section-head">
-      <h2 id="multi-title">함께 하기</h2>
-      <span class="tag">멀티플레이</span>
-      <p>친구와 같이 하는 게임</p>
+      <h2 id="multi-title">5교시 · 할로윈 나이트</h2>
+      <span class="tag">🎮 모둠 함께</span>
+      <p>모둠이 힘을 모아 학교를 탈출해요</p>
     </div>
     <article class="game-card wide locked" data-game="escape">
       <div class="lock-face">
@@ -471,7 +497,7 @@
       <canvas class="thumb" data-thumb="escape" aria-hidden="true"></canvas>
       <div class="card-body">
         <p class="origin">3D 모둠 방탈출 · 화이트데이처럼 몰래몰래</p>
-        <h3>동암초 탈출</h3>
+        <h3>할로윈 나이트<small>6-3 대탈출</small></h3>
         <p class="desc">할로윈 밤, 6-3 교실에 갇혔어요! 손전등을 든 경비 아저씨를 피해 어두운 복도를 몰래 지나고, 과학실·도서관·방송실·교무실·보건실의 수수께끼를 풀어 중앙 현관으로 탈출해요.</p>
         <ul class="chips">
           <li>모둠마다 한 대 · 태블릿·컴퓨터</li>
@@ -480,7 +506,7 @@
           <li>30~40분</li>
         </ul>
         <p class="best" id="best-escape"></p>
-        <a class="btn" id="escapeLink" href="multi/escape/index.html?v=17">동암초 탈출 시작</a>
+        <a class="btn" id="escapeLink" href="multi/escape/index.html?v=18">대탈출 시작</a>
       </div>
     </article>
   </section>
@@ -572,7 +598,7 @@
     location.reload();
   });
 
-  /* 우리 반 주소(#t-…)로 열었으면 그 설정을 동암초 탈출로 넘겨줘요 (이 기기에 기억) */
+  /* 우리 반 주소(#t-…)로 열었으면 그 설정을 할로윈 나이트(대탈출)로 넘겨줘요 (이 기기에 기억) */
   const classHash = /^#t-[\w-]+$/.test(location.hash) ? location.hash : HG.store.get('hub:classHash', '');
   if (/^#t-/.test(location.hash)) HG.store.set('hub:classHash', location.hash);
   if (classHash) document.getElementById('escapeLink').href += classHash;
@@ -818,7 +844,7 @@
     art.arrow(ctx, 160 + p * 40, -40 + p * 330, Math.PI / 2 - 0.1, 'fast');
   }
 
-  /* 동암초 탈출: 밤 복도 끝에서 손전등을 비추는 경비 아저씨 */
+  /* 할로윈 나이트: 밤 복도 끝에서 손전등을 비추는 경비 아저씨 */
   function drawEscapeThumb(ctx, t) {
     const W = 480;
     const H = 270;

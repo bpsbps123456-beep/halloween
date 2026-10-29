@@ -1,4 +1,4 @@
-/* 동암초 탈출 — 3D 학교 만들기 (three.js)
+/* 할로윈 나이트(6-3 대탈출) — 3D 학교 만들기 (three.js)
    - 렌더러, 재질·텍스처 모음, 같은 재질끼리 합쳐 그리는 도구(Kit)
    - 복도: 대피 안내도 순서대로 교실 문·팻말·계단·화장실을 세우고, 손전등 든 경비원을 둬요
    방 안(교실·과학실 …)은 rooms.js 에 있어요. 길이 단위는 미터, y 가 위쪽이에요. */
@@ -691,7 +691,7 @@
     kit.box(1.48, 1.06, 0.02, posterX, 1.55, -HW + 0.005, M.frameDark);
 
     // 우리 반 친구 이름 종이 (창문 사이 벽): 상장·생일 축하·칭찬왕·분실물·그림·독서왕
-    const friends = run.friends && run.friends.length ? run.friends : ['유령 부', '호박 군', '박쥐 양', '거미 씨'];
+    const friends = run.friends && run.friends.length ? run.friends : ['꼬마 유령', '호박 군', '박쥐 양', '거미 씨'];
     const pr = X.rand(hall.def.id.charCodeAt(1) * 977 + (run.seed % 997));
     const lockerXs = hall.spots.filter((sp) => sp.kind === 'locker').map((sp) => sp.x);
     const gaps = [];

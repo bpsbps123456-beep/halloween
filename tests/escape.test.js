@@ -1,4 +1,4 @@
-/* 동암초 탈출: 수수께끼가 언제나 풀 수 있게 만들어지는지, 복도를 지나갈 수 있는지 확인해요. */
+/* 할로윈 나이트(6-3 대탈출): 수수께끼가 언제나 풀 수 있게 만들어지는지, 복도를 지나갈 수 있는지 확인해요. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const E = require('../multi/escape/core.js').EscapeCore;
