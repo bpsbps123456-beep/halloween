@@ -8,7 +8,7 @@
   const H = C.H;
   const TAU = Math.PI * 2;
   const GAME = 'hobak';
-  const LIVES = 3;
+  const LIVES = 1; // 기회는 딱 한 번
   const DOOR = 70; // 결승선에서 파티장 문까지
 
   const $ = (id) => document.getElementById(id);
@@ -20,10 +20,8 @@
   /* 단계마다 하늘과 건물 색이 바뀝니다 */
   const THEMES = [
     { skyTop: '#2a1650', skyBottom: '#b0506a', far: '#4a2557', mid: '#331a40', walls: ['#3e2445', '#4a2b4f', '#382040'], roof: '#26142c', edge: '#140a18', lit: '#ffc65c', dark: '#22122a', moon: [770, 150, 44], mark: 'patch' },
-    { skyTop: '#160d2e', skyBottom: '#5a2d73', far: '#2c1a45', mid: '#22143a', walls: ['#2e2148', '#372856', '#291d40'], roof: '#1a1030', edge: '#0d0818', lit: '#ffd27a', dark: '#1a1230', moon: [700, 110, 40], mark: 'church' },
     { skyTop: '#0c1a26', skyBottom: '#2f6a63', far: '#163a3c', mid: '#10292d', walls: ['#1d3a3d', '#24484a', '#183133'], roof: '#0f2224', edge: '#071314', lit: '#c8ff8a', dark: '#102326', moon: [800, 120, 38], mark: 'witch' },
     { skyTop: '#0b1030', skyBottom: '#30488a', far: '#1a2652', mid: '#141d42', walls: ['#222b55', '#2a3463', '#1d244a'], roof: '#141a38', edge: '#0a0d1f', lit: '#ffe08a', dark: '#151b3a', moon: [660, 100, 42], mark: 'clock' },
-    { skyTop: '#1b0a14', skyBottom: '#6a2333', far: '#3a1520', mid: '#2a0f18', walls: ['#3a1b24', '#46222c', '#33161f'], roof: '#22101a', edge: '#12070c', lit: '#ff9f5a', dark: '#2a121a', moon: [780, 130, 46], mark: 'castle' },
     { skyTop: '#060812', skyBottom: '#2a3366', far: '#1a2048', mid: '#12163a', walls: ['#1f2348', '#272c57', '#1a1e40'], roof: '#11142e', edge: '#080a18', lit: '#fff1a8', dark: '#14183a', moon: [720, 120, 58], mark: 'castle' },
   ];
 
@@ -517,7 +515,7 @@
     const stats = $('resultStats');
     stats.textContent = '';
     [
-      ['도착', cleared ? (game.from === 0 ? '6단계 모두 성공' : game.from + 1 + '단계부터 끝까지 성공') : game.stage + 1 + '단계 · ' + game.level.name],
+      ['도착', cleared ? (game.from === 0 ? C.STAGES.length + '단계 모두 성공' : game.from + 1 + '단계부터 끝까지 성공') : game.stage + 1 + '단계 · ' + game.level.name],
       ['사탕', candies + '개'],
       ['황금 별사탕', golds + '개'],
     ].forEach(([k, v]) => {
@@ -1048,7 +1046,7 @@
     } else if (m === 'play' && game.goT < 0.7) {
       banner('출발!', null, 1 - game.goT / 0.7);
     } else if (m === 'dead') {
-      banner('앗!', game.lives > 0 ? '남은 호박 ' + '●'.repeat(game.lives) + '○'.repeat(LIVES - game.lives) : '호박이 하나도 안 남았어요');
+      banner('앗!', game.lives > 0 ? '남은 호박 ' + '●'.repeat(game.lives) + '○'.repeat(LIVES - game.lives) : LIVES === 1 ? '한 번뿐인 기회가 끝났어요' : '호박이 하나도 안 남았어요');
     } else if (m === 'ready') {
       ctx.fillStyle = 'rgba(8, 5, 14, ' + clamp(0.6 - game.modeT * 2, 0, 0.6) + ')';
       ctx.fillRect(0, 0, W, H);

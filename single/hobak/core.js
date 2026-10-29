@@ -33,30 +33,32 @@
   const ALL_GOLD_BONUS = 200;
   const CLEAR_BONUS = 100;
 
-  /** 난이도(10점 만점)에서 단계의 모든 수치를 정합니다. */
+  /** 난이도(20점 만점)에서 단계의 모든 수치를 정합니다.
+      10까지는 예전 그대로, 10을 넘으면 속도는 조금씩만 올리고 틈·정확도를 더 빡빡하게 해요.
+      지붕 길이·누를 수 있는 시간에는 바닥을 두어서 아무리 어려워도 사람이 할 수는 있게 해요. */
   function tuning(d) {
+    const a = Math.min(d, 10); // 10까지
+    const b = Math.max(0, d - 10); // 10 넘은 만큼
     return {
-      speed: 280 + 22 * d, // 달리기 속도: 난이도 2 → 324, 10 → 500
-      gapFrac: [0.28 + 0.02 * d, 0.5 + 0.03 * d], // 점프 틈 = 최대 점프 거리의 몇 배
-      roof: [330 - 12 * d, 560 - 15 * d], // 지붕 길이
-      swingRoof: [420 - 16 * d, 580 - 16 * d], // 거미줄로 건너간 뒤 지붕 길이
-      reach: [30 + 13 * d, 60 + 15 * d], // 마지막 등불에서 다음 지붕까지: 멀수록 놓는 때가 정확해야 해요
+      speed: 280 + 22 * a + 12 * b, // 달리기 속도: 난이도 5 → 390, 10 → 500, 15 → 560, 20 → 620
+      gapFrac: [Math.min(0.62, 0.28 + 0.02 * d), Math.min(0.88, 0.5 + 0.03 * d)], // 점프 틈 = 최대 점프 거리의 몇 배
+      roof: [Math.max(160, 330 - 12 * d), Math.max(300, 560 - 15 * d)], // 지붕 길이
+      swingRoof: [Math.max(170, 420 - 16 * d), Math.max(300, 580 - 16 * d)], // 거미줄로 건너간 뒤 지붕 길이
+      reach: [Math.min(250, 30 + 13 * d), Math.min(300, 60 + 15 * d)], // 마지막 등불에서 다음 지붕까지: 멀수록 놓는 때가 정확해야 해요
       dh: [-(30 + 3 * d), 40 + 3 * d], // 지붕 높이 차이
-      hop: [150 - 3 * d, 175 - 3 * d], // 징검다리 지붕 길이
-      jumpNeed: Math.max(0.15, 0.36 - 0.02 * d), // 점프를 누를 수 있는 시간 (초) 최소
-      swingNeed: Math.max(0.32, 0.8 - 0.06 * d), // 누르고 떼는 때를 조금씩 달리 해 봐도 건너는 비율 최소
+      hop: [Math.max(105, 150 - 3 * d), Math.max(125, 175 - 3 * d)], // 징검다리 지붕 길이
+      jumpNeed: d <= 10 ? Math.max(0.16, 0.36 - 0.02 * d) : 0.16 - 0.004 * b, // 점프를 누를 수 있는 시간 (초) 최소: 20 → 0.12
+      swingNeed: d <= 10 ? Math.max(0.32, 0.8 - 0.06 * d) : 0.32 - 0.008 * b, // 누르고 떼는 때를 조금씩 달리 해 봐도 건너는 비율 최소: 20 → 0.24
     };
   }
 
-  /* 단계 구성: 원작처럼 6단계. 난이도는 2 → 4 → 6 → 8 → 9 → 10 으로 오릅니다.
+  /* 단계 구성: 4단계, 난이도는 5 → 10 → 15 → 20 으로 올라요. 기회는 한 번뿐.
      double/triple = 등불 2개/3개를 이어서 건너는 구간, hops = 좁은 지붕 징검다리 */
   const STAGES = [
-    { name: '호박 마을', d: 2, seed: 1031, golds: 3, mix: { jump: 11, swing: 3 } },
-    { name: '박쥐 골목', d: 4, seed: 2203, golds: 4, mix: { jump: 10, swing: 3, double: 1, hops: 1 } },
-    { name: '마녀의 지붕', d: 6, seed: 3307, golds: 4, mix: { jump: 9, swing: 3, double: 2, hops: 2 } },
-    { name: '유령 시계탑', d: 8, seed: 4409, golds: 5, mix: { jump: 8, swing: 2, double: 3, triple: 1, hops: 2 } },
-    { name: '해골 성벽', d: 9, seed: 5501, golds: 5, mix: { jump: 9, swing: 2, double: 3, triple: 1, hops: 3 } },
-    { name: '달빛 대저택', d: 10, seed: 6607, golds: 6, mix: { jump: 9, swing: 3, double: 3, triple: 1, hops: 3 } },
+    { name: '호박 마을', d: 5, seed: 1031, golds: 4, mix: { jump: 10, swing: 3, double: 1, hops: 1 } },
+    { name: '마녀의 지붕', d: 10, seed: 3307, golds: 5, mix: { jump: 9, swing: 3, double: 3, triple: 1, hops: 3 } },
+    { name: '유령 시계탑', d: 15, seed: 4409, golds: 5, mix: { jump: 9, swing: 3, double: 3, triple: 2, hops: 3 } },
+    { name: '달빛 대저택', d: 20, seed: 6607, golds: 6, mix: { jump: 10, swing: 3, double: 3, triple: 2, hops: 4 } },
   ].map((st) => Object.assign(st, tuning(st.d)));
 
   const isSwing = (type) => type === 'swing' || type === 'double' || type === 'triple';
@@ -432,7 +434,7 @@
   }
 
   const P = {
-    pressAt: (x) => ({ when: (h) => h.state === 'run' && h.x >= x, do: 'press' }),
+    pressAt: (x) => ({ when: (h) => h.state === 'run' && h.x >= x, do: 'press', x }),
     tap: () => ({ when: (h, s) => s >= 0.08, do: 'release' }),
     webWhen: (vy) => ({ when: (h) => h.state === 'air' && h.vy >= vy, do: 'press' }),
     releaseAt: (ang) => ({ when: (h) => h.state !== 'swing' || ropeAngle(h) >= ang, do: 'release' }),
@@ -502,13 +504,18 @@
     const roofs = [];
     const anchors = [];
     const actions = [];
+    // 앞 점프를 조금 늦게 해서 늦게 내려앉아도 다음에 누를 곳이 아직 앞에 있게: 첫 누름은 여기보다 뒤
+    const pressMin = level.landX == null ? -Infinity : level.landX + 0.5 * st.jumpNeed * v;
 
     if (type === 'jump') {
       const nt = clamp(top + R(st.dh[0], st.dh[1]), TOP_MIN, TOP_MAX);
       const deff = v * flightTime(nt - top);
       // 아무리 어려워도 누를 수 있는 때가 jumpNeed초는 남게 (몸 너비만큼의 여유 24px 포함)
       const widest = deff + 24 - st.jumpNeed * v;
-      const gap = clamp(deff * R(st.gapFrac[0], st.gapFrac[1]), 60, widest);
+      // 늦게 내려앉았으면 틈을 넓혀 누르는 곳을 뒤로 미뤄요
+      const gapLo = deff - 2 * (E - pressMin);
+      if (gapLo > widest) return null;
+      const gap = clamp(Math.max(deff * R(st.gapFrac[0], st.gapFrac[1]), gapLo), 60, widest);
       // 지붕 끝에서 늦게 뛰어도 내려앉은 뒤 60px은 더 달릴 수 있게
       const len = Math.max(R(st.roof[0], st.roof[1]), deff - gap + 60);
       actions.push(P.pressAt(E - Math.max(6, (deff - gap) / 2)), P.tap());
@@ -523,9 +530,11 @@
         const last = k === count;
         const nt = clamp(t0 + R(-40, 45), TOP_MIN, TOP_MAX);
         const deff = v * flightTime(nt - t0);
-        const gap = k === 0 ? Math.max(60, deff * R(0.3, 0.42)) : deff - prevLen - 25;
-        if (gap < 60) return null;
-        const len = last ? Math.max(R(st.roof[0], st.roof[1]), deff - gap + 60) : R(st.hop[0], st.hop[1]) + k * 28;
+        const hopLen = R(st.hop[0], st.hop[1]) + k * 28;
+        // 첫 징검다리: 누르는 곳(가운데에 내려앉게)이 pressMin 뒤가 되도록 틈을 정해요
+        const gap = k === 0 ? Math.max(60, deff * R(0.3, 0.42), pressMin - E - hopLen / 2 + deff) : deff - prevLen - 25;
+        if (gap < 60 || (k === 0 && gap > deff - hopLen / 2 - 6)) return null;
+        const len = last ? Math.max(R(st.roof[0], st.roof[1]), deff - gap + 60) : hopLen;
         const x0 = x + gap;
         const landAt = last ? x0 + Math.min((deff - gap) / 2, len / 2) : x0 + len / 2;
         actions.push(P.pressAt(Math.min(x, landAt - deff)), P.tap());
@@ -556,10 +565,15 @@
 
     // 미리 달려 보기
     const trial = { speed: v, roofs: level.roofs.concat(roofs), anchors: level.anchors.concat(anchors), candies: [], goalX: Infinity, goldPoints: 0 };
-    const startX = Math.max(A.x0 + 10, E - 160);
+    // 앞 구간에서 실제로 내려앉은 곳부터 달려 봐요 (짧은 지붕이 이어지면 점점 끝 쪽에 내려앉아요)
+    const startX = Math.max(A.x0 + 10, E - 160, level.landX == null ? -Infinity : level.landX);
+    // 내려앉자마자 바로 뛰어야 하는 구간은 안 돼요 (거미줄 구간은 지붕 끝에서 뛰니까 여기서 걸러져요)
+    if (actions[0].x < pressMin) return null;
     const target = ia + roofs.length;
     const run = simulate(trial, ia, startX, actions, target, 9);
     if (!run.ok) return null;
+    // 내려앉은 뒤 다음 점프를 할 만큼 지붕이 남아 있어야 해요
+    if (roofs[roofs.length - 1].x1 - run.path[run.path.length - 1].x < st.jumpNeed * v + 12) return null;
 
     // 사람이 조금 다르게 눌러도 되는지 (거미줄 구간만): 난이도가 높을수록 기준이 빡빡해집니다
     if (isSwing(type) && swingOdds(trial, ia, startX, E, anchors.length, target) < st.swingNeed) return null;
@@ -630,6 +644,7 @@
       if (!seg) throw new Error('호박분투: 구간을 만들 수 없어요 (' + st.name + ')');
       level.roofs.push(...seg.roofs);
       level.anchors.push(...seg.anchors);
+      level.landX = seg.path[seg.path.length - 1].x;
       segs.push(seg);
     });
 
@@ -658,13 +673,14 @@
     const run = simulate(
       { speed: st.speed, roofs: level.roofs.concat([finalRoof]), anchors: level.anchors, candies: [], goalX: Infinity, goldPoints: 0 },
       level.roofs.length - 1,
-      Math.max(last.x0 + 10, last.x1 - 160),
+      Math.max(last.x0 + 10, last.x1 - 160, level.landX),
       [P.pressAt(last.x1 - Math.max(6, (st.speed * flightTime(430 - last.top) - gap) / 2)), P.tap()],
       level.roofs.length,
       6
     );
     if (!run.ok) throw new Error('호박분투: 마지막 지붕에 닿을 수 없어요 (' + st.name + ')');
     level.roofs.push(finalRoof);
+    delete level.landX;
     level.goalX = finalRoof.x0 + 460;
     level.end = finalRoof.x1;
     level.candies.sort((a, b) => a.x - b.x);

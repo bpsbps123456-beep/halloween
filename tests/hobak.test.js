@@ -65,8 +65,8 @@ function playStage(si) {
   return { ok: false, x: h.x, timeout: true, world, level };
 }
 
-test('6단계 모두 만들 수 있고, 매번 똑같이 만들어진다', () => {
-  assert.strictEqual(C.STAGES.length, 6);
+test('4단계 모두 만들 수 있고, 매번 똑같이 만들어진다', () => {
+  assert.strictEqual(C.STAGES.length, 4);
   for (let si = 0; si < C.STAGES.length; si++) {
     const a = C.buildLevel(si);
     const b = C.buildLevel(si);
@@ -102,10 +102,10 @@ test('자동 플레이어가 모든 단계를 한 번도 안 떨어지고 끝낸
   }
 });
 
-test('난이도는 2 → 4 → 6 → 8 → 9 → 10 이고, 단계마다 빨라진다', () => {
+test('난이도는 5 → 10 → 15 → 20 이고, 단계마다 빨라진다', () => {
   assert.deepStrictEqual(
     C.STAGES.map((st) => st.d),
-    [2, 4, 6, 8, 9, 10]
+    [5, 10, 15, 20]
   );
   for (let si = 1; si < C.STAGES.length; si++) assert.ok(C.STAGES[si].speed > C.STAGES[si - 1].speed);
 });
@@ -157,8 +157,9 @@ test('거미줄 구간은 누르는 때와 떼는 때가 조금 달라도 난이
   }
 });
 
-/** 조금씩 틀리게 누르는 보통 아이를 흉내 내어, 목숨 3개로 단계를 끝내는지 봅니다. */
-function kidRun(si, seed) {
+/** 조금씩 틀리게 누르는 아이를 흉내 내어, 한 번뿐인 기회로 단계를 끝내는지 봅니다.
+    noise: 손 떨림 (1 = 보통 아이, 1/3 = 아주 잘하는 아이) */
+function kidRun(si, seed, noise = 1, lives = 1) {
   const level = C.buildLevel(si);
   const world = C.createWorld(level);
   const h = world.hero;
@@ -170,7 +171,7 @@ function kidRun(si, seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
   const gauss = () => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
-  const fresh = () => ({ web: -60 + gauss() * 0.12 * C.G, rel: 0.45 + gauss() * 0.35 });
+  const fresh = () => ({ web: -60 + gauss() * 0.12 * noise * C.G, rel: 0.45 + gauss() * 0.35 * noise });
   let held = false;
   let heldFor = 0;
   let plan = null;
@@ -208,7 +209,7 @@ function kidRun(si, seed) {
             const D = level.speed * air;
             jx = Math.min(A.x1, B.x0 + Math.min((D - (B.x0 - A.x1)) / 2, (B.x1 - B.x0) / 2) - D);
           }
-          plan = Object.assign(fresh(), { jx: jx + gauss() * 0.09 * level.speed });
+          plan = Object.assign(fresh(), { jx: jx + gauss() * 0.09 * noise * level.speed });
         }
         if (h.x >= plan.jx) press();
       }
@@ -224,7 +225,7 @@ function kidRun(si, seed) {
       if (e.type === 'goal') return true;
       if (e.type === 'fall') {
         falls++;
-        if (falls >= 3) return false;
+        if (falls >= lives) return false;
         C.respawn(world);
         held = false;
         planFor = -1;
@@ -235,23 +236,27 @@ function kidRun(si, seed) {
   return false;
 }
 
-test('보통 아이 기준으로 단계가 오를수록 끝내기 어려워진다', () => {
+test('기회 한 번: 단계가 오를수록 끝내기 어려워지고, 아주 잘하는 아이는 마지막 단계도 할 수 있다', () => {
   const N = 40;
-  const rate = C.STAGES.map((st, si) => {
-    let ok = 0;
-    for (let s = 1; s <= N; s++) if (kidRun(si, s * 7919 + si)) ok++;
-    return ok / N;
-  });
-  const shown = rate.map((r) => Math.round(r * 100) + '%').join(', ');
-  assert.ok(rate[0] >= 0.9, `1단계가 너무 어려워요 (${shown})`);
-  assert.ok(rate[3] <= 0.75, `4단계(난이도 8)가 너무 쉬워요 (${shown})`);
-  assert.ok(rate[5] >= 0.05 && rate[5] <= 0.5, `6단계(난이도 10) 난이도가 맞지 않아요 (${shown})`);
-  for (let i = 1; i < rate.length; i++) assert.ok(rate[i] <= rate[i - 1] + 0.15, `${i + 1}단계가 앞 단계보다 쉬워요 (${shown})`);
+  const rates = (noise) =>
+    C.STAGES.map((st, si) => {
+      let ok = 0;
+      for (let s = 1; s <= N; s++) if (kidRun(si, s * 7919 + si, noise)) ok++;
+      return ok / N;
+    });
+  const kid = rates(1);
+  const pro = rates(1 / 3);
+  const shown = 'Kid ' + kid.map((r) => Math.round(r * 100) + '%').join(', ') + ' / pro ' + pro.map((r) => Math.round(r * 100) + '%').join(', ');
+  assert.ok(kid[0] >= 0.2 && kid[0] <= 0.75, `1단계(난이도 5)가 맞지 않아요 (${shown})`);
+  assert.ok(kid[1] <= 0.25, `2단계(난이도 10)가 너무 쉬워요 (${shown})`);
+  assert.ok(pro[0] >= 0.8, `잘하는 아이에게 1단계가 너무 어려워요 (${shown})`);
+  assert.ok(pro[3] >= 0.05 && pro[3] <= 0.4, `4단계(난이도 20)가 맞지 않아요 (${shown})`);
+  for (const r of [kid, pro]) for (let i = 1; i < r.length; i++) assert.ok(r[i] <= r[i - 1] + 0.15, `${i + 1}단계가 앞 단계보다 쉬워요 (${shown})`);
 });
 
 test('사탕 점수: 사탕 5점, 황금 별사탕은 단계마다 커진다', () => {
   const l1 = C.buildLevel(0);
-  const l6 = C.buildLevel(5);
+  const l6 = C.buildLevel(C.STAGES.length - 1);
   assert.strictEqual(C.CANDY_POINTS, 5);
   assert.ok(l6.goldPoints > l1.goldPoints);
   const run = playStage(0);
