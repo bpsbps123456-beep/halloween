@@ -376,6 +376,58 @@
   .game-card.opened { animation: cardOpen 0.9s ease; }
   @keyframes cardOpen { from { transform: scale(0.94) rotateY(70deg); filter: brightness(2); } to { transform: none; filter: none; } }
   .relock { margin: 8px 0 30px; text-align: right; }
+
+  /* 소리 켜고 끄기 (오른쪽 위) */
+  .sound-btn {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 30;
+    width: 48px;
+    height: 48px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(20, 14, 34, 0.75);
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+  .sound-btn:focus-visible { outline: 3px solid var(--candle); outline-offset: 2px; }
+
+  /* 선생님 화면: 처음 한 번 「눌러서 시작」 막. 누르면 음악과 함께 칠판이 써져요 */
+  .curtain {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+    padding: 24px;
+    border: 0;
+    background: radial-gradient(circle at 50% 42%, rgba(255, 138, 31, 0.28), transparent 55%), rgba(10, 7, 20, 0.95);
+    color: #f4f1e6;
+    font: inherit;
+    text-align: center;
+    cursor: pointer;
+  }
+  .curtain[hidden] { display: none; }
+  .c-pumpkin { font-size: clamp(90px, 18vw, 170px); line-height: 1; animation: ttWobble 2.4s ease-in-out infinite; }
+  .c-title { font-family: var(--font-display); font-size: clamp(40px, 8vw, 84px); line-height: 1.1; color: var(--pumpkin); text-shadow: 0 0 0.3em rgba(255, 138, 31, 0.5); }
+  .c-go { color: var(--mint); font-size: clamp(18px, 2.6vw, 26px); animation: cBlink 1.6s ease-in-out infinite; }
+  .curtain.out { animation: cOut 0.7s ease forwards; }
+  @keyframes cBlink { 50% { opacity: 0.4; } }
+  @keyframes cOut { to { opacity: 0; transform: scale(1.08); visibility: hidden; } }
+  /* 막이 걷히기 전에는 칠판도 기다려요 */
+  body.waiting .tt-board h2, body.waiting .tt-list li, body.waiting .tt-stamp { animation-play-state: paused; }
+  .tt-item.rolling { animation: ttRoll 0.11s linear infinite; box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.7), 0 0 26px rgba(255, 138, 31, 0.45); }
+  @keyframes ttRoll { 25% { transform: rotate(-0.8deg) translateX(-2px); } 75% { transform: rotate(0.8deg) translateX(2px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .c-pumpkin, .c-go, .tt-item.rolling { animation: none; }
+  }
   .relock button { border: 0; background: none; color: var(--text-dim); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; }
   @media (prefers-reduced-motion: reduce) { .lock-q, .game-card.opened { animation: none; } }
 
@@ -423,6 +475,12 @@
 </style>
 </head>
 <body>
+<button class="curtain" id="curtain" type="button" hidden>
+  <span class="c-pumpkin" aria-hidden="true">🎃</span>
+  <span class="c-title">할로윈 게임 파티</span>
+  <span class="c-go">화면을 누르면 시작해요 🔊</span>
+</button>
+<button class="sound-btn" id="soundBtn" type="button">🔊</button>
 <header class="sky" aria-hidden="true">
   <canvas id="sky"></canvas>
 </header>
@@ -606,8 +664,8 @@
   <p class="relock"><button id="relockBtn" type="button">🔒 이 기기에서 다시 잠그고 시간표 숨기기 (선생님용)</button></p>
 </div>
 
-<script src="assets/common.js"></script>
-<script src="assets/art.js"></script>
+<script src="assets/common.js?v=20"></script>
+<script src="assets/art.js?v=20"></script>
 <script>
 (function () {
   'use strict';
@@ -634,6 +692,40 @@
      선생님 화면(주소에 ?show 를 붙여 한 번 연 기기)에서는 칠판을 누를 때마다 다음 활동이 「펑」 하고 열려요.
      학생 기기는 눌러도 안 열리고, 비밀번호로 게임을 열면 그 게임까지 공개돼요. */
   const SHOWN_KEY = 'hub:shown';
+  HG.bindMuteButton(document.getElementById('soundBtn'));
+  // 할로윈 파티 음악 (선생님 화면에서만): 라단조 오르골 + 쿵짝 베이스 + 똑딱 시계, 두 바퀴마다 유령이 우우~
+  const PARTY_MELODY = [
+    [74, 69, 65, 69, 74, 73, 74, 0],
+    [77, 74, 70, 74, 77, 76, 77, 0],
+    [79, 77, 76, 74, 73, 74, 76, 77],
+    [76, 0, 73, 0, 69, 70, 69, 68],
+    [74, 69, 65, 69, 74, 73, 74, 0],
+    [77, 74, 70, 74, 77, 79, 81, 0],
+    [82, 81, 79, 77, 76, 74, 73, 76],
+    [74, 0, 69, 0, 62, 0, 0, 0],
+  ];
+  const PARTY_BASS = [[38, 38], [34, 34], [31, 31], [33, 33], [38, 38], [34, 34], [31, 33], [38, 38]];
+  const PARTY_CHORDS = { 38: [62, 65, 69], 34: [62, 65, 70], 31: [62, 67, 70], 33: [61, 64, 69] };
+  const PARTY_SONG = {
+    bpm: 104,
+    play(step, when, dur, m) {
+      const bar = Math.floor(step / 16) % 8;
+      const s = step % 16;
+      const root = PARTY_BASS[bar][s >> 3];
+      if (s % 8 === 0) {
+        m.tone({ type: 'triangle', f: m.N(root), dur: dur * 3, vol: 0.4, when });
+        PARTY_CHORDS[root].forEach((n) => m.tone({ type: 'sawtooth', f: m.N(n), dur: dur * 7, vol: 0.026, attack: 0.08, lowpass: 800, when }));
+      }
+      if (s % 8 === 4) m.tone({ type: 'triangle', f: m.N(root + 19), dur: dur * 1.2, vol: 0.12, when });
+      const n = s % 2 === 0 ? PARTY_MELODY[bar][s >> 1] : 0;
+      if (n) {
+        m.tone({ type: 'triangle', f: m.N(n), dur: dur * 3.2, vol: 0.2, when });
+        m.tone({ type: 'sine', f: m.N(n + 12), dur: dur * 1.5, vol: 0.06, when });
+      }
+      if (s % 4 === 0) m.noise({ type: 'highpass', f: s % 8 ? 5200 : 3800, dur: 0.03, vol: 0.06, when });
+      if (step % 256 === 128) m.tone({ type: 'sine', f: 520, to: 360, dur: 2.2, vol: 0.08, attack: 0.4, vib: { rate: 5, depth: 18 }, when });
+    },
+  };
   const timetable = (() => {
     const query = new URLSearchParams(location.search);
     if (query.has('show')) HG.store.set('hub:presenter', query.get('show') !== '0');
@@ -653,7 +745,7 @@
           const undo = document.createElement('button');
           undo.type = 'button';
           undo.textContent = '↶ 하나 다시 숨기기';
-          undo.addEventListener('click', () => set(shown - 1, false));
+          undo.addEventListener('click', back);
           hint.append(undo);
         }
       } else if (shown < items.length) hint.append('🤫 선생님이 하나씩 공개해요');
@@ -679,12 +771,32 @@
       if (presenter) HG.store.set(SHOWN_KEY, shown);
       paintHint();
     }
+    let rolling = false;
     function next() {
+      if (rolling) return true;
       if (shown >= items.length) return false;
-      set(shown + 1, true);
-      HG.sound.play('flip');
-      setTimeout(() => HG.sound.play(shown === items.length ? 'clear' : 'gold'), 180);
+      // 음악이 멈추고 두구두구… 펑!
+      const it = items[shown];
+      rolling = true;
+      it.classList.add('rolling');
+      HG.sound.pauseMusic();
+      HG.sound.play('drumroll');
+      setTimeout(() => {
+        it.classList.remove('rolling');
+        rolling = false;
+        set(shown + 1, true);
+        const last = shown === items.length;
+        HG.sound.play('pop');
+        setTimeout(() => HG.sound.play(last ? 'fanfare' : 'gold'), 120);
+        if (last) setTimeout(() => HG.sound.play('laugh'), 1300);
+        setTimeout(() => HG.sound.resumeMusic(), last ? 2400 : 600);
+      }, 800);
       return true;
+    }
+    function back() {
+      if (rolling || shown < 1) return;
+      set(shown - 1, false);
+      HG.sound.play('whoosh');
     }
     board.addEventListener('click', (e) => {
       if (e.target.closest('a[href], button')) return;
@@ -700,15 +812,65 @@
       teaseTimer = setTimeout(paintHint, 2500);
     });
     // 발표용 리모컨·키보드: → 다음, ← 되돌리기
+    const curtain = document.getElementById('curtain');
     document.addEventListener('keydown', (e) => {
       if (!presenter || e.altKey || e.ctrlKey || e.metaKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-      if ((e.key === 'ArrowRight' || e.key === 'PageDown') && next()) e.preventDefault();
+      const fwd = e.key === 'ArrowRight' || e.key === 'PageDown';
+      if (!curtain.hidden) {
+        if (fwd) {
+          e.preventDefault();
+          curtain.click();
+        }
+      } else if (fwd && next()) e.preventDefault();
       else if ((e.key === 'ArrowLeft' || e.key === 'PageUp') && shown > 0) {
         e.preventDefault();
-        set(shown - 1, false);
+        back();
       }
     });
-    if (presenter) board.classList.add('presenter');
+    if (presenter) {
+      board.classList.add('presenter');
+      // 브라우저는 한 번 눌러야 소리를 내 줘요. 처음 열 때는 「눌러서 시작」 막을 걷으며 음악과 함께 칠판이 써져요.
+      let first = true;
+      try {
+        first = !sessionStorage.getItem('hub:started');
+      } catch (e) {
+        /* 기억 못 하면 매번 막이 나와도 괜찮아요 */
+      }
+      if (first) {
+        curtain.hidden = false;
+        document.body.classList.add('waiting');
+        curtain.focus();
+        curtain.addEventListener(
+          'click',
+          () => {
+            try {
+              sessionStorage.setItem('hub:started', '1');
+            } catch (e) {
+              /* 괜찮아요 */
+            }
+            curtain.classList.add('out');
+            document.body.classList.remove('waiting');
+            setTimeout(() => (curtain.hidden = true), 700);
+            HG.sound.music(PARTY_SONG);
+            if (still) return;
+            // 칠판 움직임에 맞춰: 사각사각 제목, 한 줄마다 탁, 마지막에 쾅 도장
+            HG.sound.play('chalk');
+            board.querySelectorAll('.tt-list li').forEach((li, i) => setTimeout(() => HG.sound.play('tap'), (0.9 + i * 0.38) * 1000));
+            setTimeout(() => HG.sound.play('stamp'), (0.9 + 6 * 0.38 + 0.3) * 1000);
+          },
+          { once: true }
+        );
+      } else {
+        // 게임에 다녀오면: 처음 누를 때 음악이 다시 흘러요
+        const go = () => {
+          window.removeEventListener('pointerdown', go, true);
+          window.removeEventListener('keydown', go, true);
+          HG.sound.music(PARTY_SONG);
+        };
+        window.addEventListener('pointerdown', go, true);
+        window.addEventListener('keydown', go, true);
+      }
+    }
     set(presenter ? Number(HG.store.get(SHOWN_KEY, 0)) || 0 : byUnlock(), false);
     return { sync: () => presenter || set(Math.max(shown, byUnlock()), true) };
   })();

@@ -338,6 +338,43 @@
         tone({ type: 'triangle', f: 1320, dur: 0.12, vol: 0.12, at: 0.13 });
       },
       wrong: () => tone({ type: 'square', f: 160, dur: 0.25, vol: 0.08, lowpass: 900 }),
+      // 두구두구: 공개하기 전 작은북 연타 (점점 크게)
+      drumroll: () => {
+        for (let i = 0; i < 18; i++) noise({ f: 1800, dur: 0.06, vol: 0.05 + i * 0.012, q: 0.8, at: i * 0.042 });
+        tone({ type: 'sine', f: 90, to: 120, dur: 0.75, vol: 0.12, attack: 0.3 });
+      },
+      // 펑!
+      pop: () => {
+        tone({ type: 'sine', f: 160, to: 50, dur: 0.25, vol: 0.4 });
+        noise({ type: 'lowpass', f: 2400, to: 400, dur: 0.35, vol: 0.3 });
+        noise({ type: 'highpass', f: 6000, dur: 0.25, vol: 0.08, at: 0.03 });
+      },
+      // 빠바밤! 마지막 공개
+      fanfare: () =>
+        [[67, 0], [72, 0.12], [76, 0.24], [79, 0.36], [84, 0.56]].forEach(([m, t], i) => {
+          const long = i === 4;
+          tone({ type: 'sawtooth', f: N(m), dur: long ? 0.9 : 0.18, vol: 0.05, at: t, lowpass: 2800, vib: long ? { rate: 6, depth: 6 } : null });
+          tone({ type: 'triangle', f: N(m - 12), dur: long ? 0.9 : 0.2, vol: 0.12, at: t });
+        }),
+      // 흐흐흐: 마녀 웃음
+      laugh: () =>
+        [0, 0.16, 0.32, 0.48, 0.66].forEach((t, i) =>
+          tone({ type: 'sawtooth', f: 620 - i * 40, to: 480 - i * 40, dur: 0.14, vol: 0.06, at: t, lowpass: 1800, vib: { rate: 22, depth: 30 } })
+        ),
+      // 사각사각: 칠판에 분필로 쓰는 소리
+      chalk: () => {
+        for (let i = 0; i < 7; i++) noise({ f: 2600 + (i % 3) * 500, dur: 0.11, vol: 0.05, q: 4, at: i * 0.14 });
+      },
+      // 탁: 칠판에 한 줄
+      tap: () => {
+        noise({ type: 'lowpass', f: 900, dur: 0.07, vol: 0.18 });
+        tone({ type: 'triangle', f: 330, to: 260, dur: 0.06, vol: 0.08 });
+      },
+      // 쾅: 도장
+      stamp: () => {
+        tone({ type: 'sine', f: 120, to: 55, dur: 0.3, vol: 0.45 });
+        noise({ type: 'lowpass', f: 1200, dur: 0.18, vol: 0.25 });
+      },
     };
 
     /* 배경음: 16분음표 단위로 조금씩 앞서 예약합니다. */
