@@ -182,23 +182,60 @@
   @keyframes ttWrite { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
   .tt-list { margin: 0; padding: 0; list-style: none; }
   .tt-list li {
+    display: grid;
+    grid-template-columns: 4.6em 1fr;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 0;
     border-bottom: 2px dashed rgba(244, 241, 230, 0.16);
     animation: ttIn 0.65s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
     animation-delay: calc(0.9s + var(--i) * 0.38s);
   }
-  .tt-row {
-    display: grid;
-    grid-template-columns: 4.6em 2.2em 1fr;
-    align-items: center;
-    gap: 6px 14px;
-    padding: 10px 6px;
+  .tt-items { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .tt-item {
+    position: relative;
+    display: block;
+    padding: 8px 6px;
     border-radius: 12px;
     color: inherit;
     text-decoration: none;
   }
-  a.tt-row { cursor: pointer; transition: background 0.2s; }
-  a.tt-row:hover, a.tt-row:focus-visible { background: rgba(255, 209, 102, 0.12); outline: none; }
+  .tt-face { display: grid; grid-template-columns: 2.2em 1fr; align-items: center; gap: 6px 14px; }
+  a.tt-item[href] { cursor: pointer; transition: background 0.2s; }
+  a.tt-item[href]:hover, a.tt-item[href]:focus-visible { background: rgba(255, 209, 102, 0.12); outline: none; }
   .tt-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+  /* 공개 전: 알쏭달쏭한 물음표 카드. 선생님 화면에서 누를 때마다 하나씩 「펑」 하고 열려요 */
+  .tt-item:not(.open) .tt-a, .tt-item.open .tt-q { display: none; }
+  .tt-q .tt-name { color: rgba(244, 241, 230, 0.5); letter-spacing: 0.25em; animation: ttFlicker 3.2s steps(1) infinite; }
+  .tt-q .tt-desc { font-style: italic; }
+  .tt-item:not(.open) {
+    background: repeating-linear-gradient(135deg, rgba(244, 241, 230, 0.035) 0 12px, transparent 12px 24px);
+    outline: 2px dashed rgba(244, 241, 230, 0.14);
+    outline-offset: -2px;
+  }
+  .tt-item.next { cursor: pointer; animation: ttNext 1.6s ease-in-out infinite; }
+  .tt-item.tease { animation: lockShake 0.4s; }
+  .tt-item.now .tt-a { animation: ttReveal 0.75s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+  .tt-item.now { animation: ttFlash 1.4s ease-out; }
+  .tt-item.now::after {
+    content: '✨';
+    position: absolute;
+    left: 0.4em;
+    top: 50%;
+    font-size: 44px;
+    pointer-events: none;
+    animation: ttPuff 0.9s ease-out forwards;
+  }
+  @keyframes ttFlicker { 0%, 100% { opacity: 1; } 47% { opacity: 0.35; } 50% { opacity: 1; } 83% { opacity: 0.6; } }
+  @keyframes ttNext { 50% { box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.55), 0 0 22px rgba(255, 138, 31, 0.35); } }
+  @keyframes ttReveal { 0% { opacity: 0; transform: scale(0.6) rotate(-4deg); filter: blur(6px); } 60% { opacity: 1; transform: scale(1.05) rotate(1deg); filter: none; } 100% { transform: none; } }
+  @keyframes ttFlash { from { background: rgba(255, 209, 102, 0.35); } to { background: transparent; } }
+  @keyframes ttPuff { from { opacity: 1; transform: translateY(-50%) scale(0.3); } to { opacity: 0; transform: translateY(-50%) scale(2.6) rotate(40deg); } }
+  .tt-extra { margin: 0; padding: 0 6px 6px; color: rgba(244, 241, 230, 0.72); font-size: clamp(14px, 1.8vw, 16px); }
+  .tt-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 1.4em; margin: 12px 0 0; color: var(--mint); font-size: 15px; }
+  .tt-hint:empty { display: none; }
+  .tt-hint button { border: 0; background: none; color: var(--text-dim); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; }
   .tt-desc { color: rgba(244, 241, 230, 0.72); font-size: clamp(14px, 1.8vw, 16px); line-height: 1.4; }
   .tt-tag {
     display: inline-block;
@@ -213,7 +250,7 @@
     vertical-align: middle;
     text-shadow: none;
   }
-  li.game .tt-tag { background: rgba(255, 209, 102, 0.22); color: var(--candle); }
+  .tt-item.game .tt-tag { background: rgba(255, 209, 102, 0.22); color: var(--candle); }
   .tt-list li:last-child { border-bottom: 0; }
   @keyframes ttIn { from { opacity: 0; transform: translateX(48px) rotate(1.5deg); filter: blur(5px); } to { opacity: 1; transform: none; filter: none; } }
   .tt-no {
@@ -240,8 +277,9 @@
     color: #f4f1e6;
     overflow-wrap: anywhere;
   }
-  .tt-list li.game .tt-name { color: var(--candle); }
-  .tt-list li.last .tt-name { color: var(--pumpkin); text-shadow: 0 0 0.3em rgba(255, 138, 31, 0.5); }
+  .tt-a .tt-name { animation: none; }
+  .tt-item.game .tt-a .tt-name { color: var(--candle); }
+  .tt-item.last .tt-a .tt-name { color: var(--pumpkin); text-shadow: 0 0 0.3em rgba(255, 138, 31, 0.5); }
   .tt-ghost {
     position: absolute;
     top: 18%;
@@ -270,16 +308,21 @@
     letter-spacing: 0.12em;
     transform: rotate(-10deg);
     animation: ttStamp 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) both;
-    animation-delay: calc(0.9s + 5 * 0.38s + 0.3s);
+    animation-delay: calc(0.9s + 4 * 0.38s + 0.3s);
   }
   @keyframes ttStamp { from { opacity: 0; transform: rotate(-10deg) scale(2.4); } to { opacity: 1; transform: rotate(-10deg) scale(1); } }
   @media (max-width: 520px) {
     .tt-stamp { position: static; display: inline-block; margin: 0 0 8px; }
+    .tt-list li { grid-template-columns: 1fr; gap: 2px; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .tt-board h2, .tt-list li, .tt-icon, .tt-stamp { animation: none; }
-    .tt-ghost { display: none; }
+    .tt-board h2, .tt-list li, .tt-icon, .tt-stamp, .tt-q .tt-name, .tt-item.next, .tt-item.now, .tt-item.now .tt-a { animation: none; }
+    .tt-ghost, .tt-item.now::after { display: none; }
+    .tt-item.next { box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.55); }
   }
+
+  /* 게임 칸 제목도 시간표에서 공개되기 전에는 비밀 */
+  section[data-tt]:not(.open) .if-open, section[data-tt].open .if-secret { display: none; }
 
   /* 비밀 게임: 비밀번호를 넣어야 무슨 게임인지 보여요 */
   .lock-face { display: none; }
@@ -388,16 +431,53 @@
   </div>
 
   <section class="timetable" aria-labelledby="tt-title">
-    <div class="tt-board">
+    <div class="tt-board" id="ttBoard">
       <h2 id="tt-title"><b>🎃</b> 할로윈 시간표</h2>
       <p class="tt-stamp" aria-hidden="true">HAPPY HALLOWEEN</p>
       <ol class="tt-list">
-        <li style="--i: 0"><div class="tt-row"><span class="tt-no">1교시</span><span class="tt-icon" aria-hidden="true">🍫</span><span class="tt-main"><span class="tt-name">초콜릿을 던져라 <em class="tt-tag">교실</em></span><span class="tt-desc">교실 호박통에 간식을 던져 넣은 만큼 가져가요</span></span></div></li>
-        <li class="game" style="--i: 1"><a class="tt-row" href="#zombie"><span class="tt-no">2교시</span><span class="tt-icon" aria-hidden="true">🧟</span><span class="tt-main"><span class="tt-name">좀비를 이겨라 <em class="tt-tag">🎮 비밀 게임 1·2</em></span><span class="tt-desc">좀비(선생님)의 기록을 이겨라! 아래 비밀 게임으로 도전해요</span></span></a></li>
-        <li style="--i: 2"><div class="tt-row"><span class="tt-no">3교시</span><span class="tt-icon" aria-hidden="true">⚔️</span><span class="tt-main"><span class="tt-name">할로윈 검투사 <em class="tt-tag">교실</em></span><span class="tt-desc">안대를 하고 우리 반 무기로 맞혀요</span></span></div></li>
-        <li style="--i: 3"><div class="tt-row"><span class="tt-no">4교시</span><span class="tt-icon" aria-hidden="true">🦷</span><span class="tt-main"><span class="tt-name">물리면 죽는다 <em class="tt-tag">강당</em></span><span class="tt-desc">첫 좀비는 선생님! 닿으면 감염, 끝까지 살아남아요</span></span></div></li>
-        <li class="game last" style="--i: 4"><a class="tt-row" href="#escape"><span class="tt-no">5교시</span><span class="tt-icon" aria-hidden="true">🚪</span><span class="tt-main"><span class="tt-name">할로윈 나이트: 6-3 대탈출 <em class="tt-tag">🎮 비밀 게임 3</em></span><span class="tt-desc">모둠이 함께 경비 아저씨를 피해 학교를 탈출해요</span></span></a></li>
+        <li style="--i: 0">
+          <span class="tt-no">1교시</span>
+          <div class="tt-items">
+            <div class="tt-item">
+              <span class="tt-face tt-q"><span class="tt-icon" aria-hidden="true">❓</span><span class="tt-main"><span class="tt-name">? ? ?</span><span class="tt-desc">달콤한 무언가가 하늘을 날아요…</span></span></span>
+              <span class="tt-face tt-a"><span class="tt-icon" aria-hidden="true">🍫</span><span class="tt-main"><span class="tt-name">초콜릿을 던져라 <em class="tt-tag">미니 게임 · 교실</em></span><span class="tt-desc">교실 호박통에 간식을 던져 넣은 만큼 가져가요</span></span></span>
+            </div>
+            <a class="tt-item game" data-href="#zombie" data-game="hobak jukrim">
+              <span class="tt-face tt-q"><span class="tt-icon" aria-hidden="true">❓</span><span class="tt-main"><span class="tt-name">? ? ?</span><span class="tt-desc">누군가의 기록을 깨뜨려야 해요…</span></span></span>
+              <span class="tt-face tt-a"><span class="tt-icon" aria-hidden="true">🧟</span><span class="tt-main"><span class="tt-name">좀비를 이겨라 <em class="tt-tag">🎮 비밀 게임 1·2</em></span><span class="tt-desc">좀비(선생님)의 기록을 이겨라! 아래 비밀 게임으로 도전해요</span></span></span>
+            </a>
+          </div>
+        </li>
+        <li style="--i: 1">
+          <span class="tt-no">2교시</span>
+          <div class="tt-items">
+            <div class="tt-item">
+              <span class="tt-face tt-q"><span class="tt-icon" aria-hidden="true">❓</span><span class="tt-main"><span class="tt-name">? ? ?</span><span class="tt-desc">눈을 감으면 무엇이 보일까요…</span></span></span>
+              <span class="tt-face tt-a"><span class="tt-icon" aria-hidden="true">⚔️</span><span class="tt-main"><span class="tt-name">할로윈 검투사 <em class="tt-tag">교실</em></span><span class="tt-desc">안대를 하고 우리 반 무기로 맞혀요</span></span></span>
+            </div>
+          </div>
+        </li>
+        <li style="--i: 2">
+          <span class="tt-no">3교시</span>
+          <div class="tt-items">
+            <div class="tt-item">
+              <span class="tt-face tt-q"><span class="tt-icon" aria-hidden="true">❓</span><span class="tt-main"><span class="tt-name">? ? ?</span><span class="tt-desc">조심! 닿으면 큰일 나요…</span></span></span>
+              <span class="tt-face tt-a"><span class="tt-icon" aria-hidden="true">🦷</span><span class="tt-main"><span class="tt-name">물리면 죽는다 <em class="tt-tag">강당</em></span><span class="tt-desc">첫 좀비는 선생님! 닿으면 감염, 끝까지 살아남아요</span></span></span>
+            </div>
+          </div>
+        </li>
+        <li style="--i: 3">
+          <span class="tt-no">4교시</span>
+          <div class="tt-items">
+            <a class="tt-item game last" data-href="#escape" data-game="escape">
+              <span class="tt-face tt-q"><span class="tt-icon" aria-hidden="true">❓</span><span class="tt-main"><span class="tt-name">? ? ?</span><span class="tt-desc">한밤중 학교에 갇힌다면…?</span></span></span>
+              <span class="tt-face tt-a"><span class="tt-icon" aria-hidden="true">🚪</span><span class="tt-main"><span class="tt-name">할로윈 나이트: 6-3 대탈출 <em class="tt-tag">🎮 비밀 게임 3</em></span><span class="tt-desc">모둠이 함께 경비 아저씨를 피해 학교를 탈출해요</span></span></span>
+            </a>
+            <p class="tt-extra">🧹 마지막엔 다 함께 뒷정리</p>
+          </div>
+        </li>
       </ol>
+      <p class="tt-hint" id="ttHint" aria-live="polite"></p>
       <span class="tt-ghost" aria-hidden="true">👻</span>
     </div>
   </section>
@@ -416,11 +496,11 @@
     </div>
   </dialog>
 
-  <section id="zombie" aria-labelledby="single-title">
+  <section id="zombie" data-tt="1" aria-labelledby="single-title">
     <div class="section-head">
-      <h2 id="single-title">2교시 · 좀비를 이겨라</h2>
+      <h2 id="single-title">1교시 · <span class="if-open">좀비를 이겨라</span><span class="if-secret">비밀 게임 1·2</span></h2>
       <span class="tag">🎮 혼자 하기</span>
-      <p>좀비(선생님)의 기록을 이겨라! 한 명씩 돌아가며 도전해요</p>
+      <p><span class="if-open">좀비(선생님)의 기록을 이겨라! 한 명씩 돌아가며 도전해요</span><span class="if-secret">무슨 게임일까요? 선생님이 공개하면 비밀번호로 열어요</span></p>
     </div>
     <div class="cards">
       <article class="game-card locked" data-game="hobak">
@@ -477,11 +557,11 @@
     </div>
   </section>
 
-  <section id="escape" aria-labelledby="multi-title">
+  <section id="escape" data-tt="4" aria-labelledby="multi-title">
     <div class="section-head">
-      <h2 id="multi-title">5교시 · 할로윈 나이트</h2>
+      <h2 id="multi-title">4교시 · <span class="if-open">할로윈 나이트</span><span class="if-secret">비밀 게임 3</span></h2>
       <span class="tag">🎮 모둠 함께</span>
-      <p>모둠이 힘을 모아 학교를 탈출해요</p>
+      <p><span class="if-open">모둠이 힘을 모아 학교를 탈출해요</span><span class="if-secret">무슨 게임일까요? 선생님이 공개하면 비밀번호로 열어요</span></p>
     </div>
     <article class="game-card wide locked" data-game="escape">
       <div class="lock-face">
@@ -511,7 +591,7 @@
     </article>
   </section>
 
-  <p class="relock"><button id="relockBtn" type="button">🔒 이 기기에서 다시 잠그기 (선생님용)</button></p>
+  <p class="relock"><button id="relockBtn" type="button">🔒 이 기기에서 다시 잠그고 시간표 숨기기 (선생님용)</button></p>
 </div>
 
 <script src="assets/common.js"></script>
@@ -537,6 +617,89 @@
   };
   const unlocked = Object.assign({}, HG.store.get(LOCK_KEY, {}));
   const isOpen = (game) => !!unlocked[game];
+
+  /* ---- 할로윈 시간표: 처음엔 모두 물음표, 하나씩 공개해요 ----
+     선생님 화면(주소에 ?show 를 붙여 한 번 연 기기)에서는 칠판을 누를 때마다 다음 활동이 「펑」 하고 열려요.
+     학생 기기는 눌러도 안 열리고, 비밀번호로 게임을 열면 그 게임까지 공개돼요. */
+  const SHOWN_KEY = 'hub:shown';
+  const timetable = (() => {
+    const query = new URLSearchParams(location.search);
+    if (query.has('show')) HG.store.set('hub:presenter', query.get('show') !== '0');
+    const presenter = !!HG.store.get('hub:presenter', false);
+    const board = document.getElementById('ttBoard');
+    const hint = document.getElementById('ttHint');
+    const items = Array.from(board.querySelectorAll('.tt-item'));
+    let shown = 0;
+    let teaseTimer = null;
+    // 학생 기기: 비밀번호로 연 게임 중 가장 뒤 게임까지
+    const byUnlock = () => items.reduce((n, it, i) => ((it.dataset.game || '').split(' ').some(isOpen) ? i + 1 : n), 0);
+    function paintHint() {
+      hint.textContent = '';
+      if (presenter) {
+        hint.append(shown < items.length ? '👆 칠판을 누르면 다음 활동이 공개돼요' : '🎉 오늘의 할로윈 시간표 공개 끝!');
+        if (shown > 0) {
+          const undo = document.createElement('button');
+          undo.type = 'button';
+          undo.textContent = '↶ 하나 다시 숨기기';
+          undo.addEventListener('click', () => set(shown - 1, false));
+          hint.append(undo);
+        }
+      } else if (shown < items.length) hint.append('🤫 선생님이 하나씩 공개해요');
+    }
+    function set(n, animate) {
+      shown = Math.max(0, Math.min(items.length, n));
+      items.forEach((it, i) => {
+        const open = i < shown;
+        if (open && animate && !it.classList.contains('open')) {
+          it.classList.remove('now');
+          void it.offsetWidth;
+          it.classList.add('now');
+        }
+        if (!open) it.classList.remove('now');
+        it.classList.toggle('open', open);
+        it.classList.toggle('next', presenter && i === shown);
+        if (it.dataset.href) {
+          if (open) it.setAttribute('href', it.dataset.href);
+          else it.removeAttribute('href');
+        }
+      });
+      document.querySelectorAll('section[data-tt]').forEach((sec) => sec.classList.toggle('open', Number(sec.dataset.tt) < shown));
+      if (presenter) HG.store.set(SHOWN_KEY, shown);
+      paintHint();
+    }
+    function next() {
+      if (shown >= items.length) return false;
+      set(shown + 1, true);
+      HG.sound.play('flip');
+      setTimeout(() => HG.sound.play(shown === items.length ? 'clear' : 'gold'), 180);
+      return true;
+    }
+    board.addEventListener('click', (e) => {
+      if (e.target.closest('a[href], button')) return;
+      if (presenter) return void next();
+      const it = e.target.closest('.tt-item:not(.open)');
+      if (!it) return;
+      it.classList.remove('tease');
+      void it.offsetWidth;
+      it.classList.add('tease');
+      HG.sound.play('boo');
+      hint.textContent = '🤫 쉿! 선생님이 공개할 때까지 비밀이에요';
+      clearTimeout(teaseTimer);
+      teaseTimer = setTimeout(paintHint, 2500);
+    });
+    // 발표용 리모컨·키보드: → 다음, ← 되돌리기
+    document.addEventListener('keydown', (e) => {
+      if (!presenter || e.altKey || e.ctrlKey || e.metaKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+      if ((e.key === 'ArrowRight' || e.key === 'PageDown') && next()) e.preventDefault();
+      else if ((e.key === 'ArrowLeft' || e.key === 'PageUp') && shown > 0) {
+        e.preventDefault();
+        set(shown - 1, false);
+      }
+    });
+    if (presenter) board.classList.add('presenter');
+    set(presenter ? Number(HG.store.get(SHOWN_KEY, 0)) || 0 : byUnlock(), false);
+    return { sync: () => presenter || set(Math.max(shown, byUnlock()), true) };
+  })();
   document.querySelectorAll('.game-card').forEach((card) => {
     const game = card.dataset.game;
     if (isOpen(game)) {
@@ -576,6 +739,7 @@
         const th = thumbs.find((x) => x.c.parentNode === card);
         if (th) th.visible = true;
         if (still) redraw();
+        timetable.sync();
         return;
       }
       wrong++;
@@ -595,6 +759,7 @@
   });
   document.getElementById('relockBtn').addEventListener('click', () => {
     HG.store.set(LOCK_KEY, {});
+    HG.store.set(SHOWN_KEY, 0);
     location.reload();
   });
 
