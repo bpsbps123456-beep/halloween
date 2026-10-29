@@ -34,7 +34,7 @@
     padding-right: var(--gutter-r);
   }
 
-  .intro { position: relative; padding-block: 0 28px; }
+  .intro { position: relative; padding-block: 0 4px; }
   .intro h1 {
     margin: -0.42em 0 0;
     font-family: var(--font-display);
@@ -142,21 +142,118 @@
   .game-card.wide { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
   .game-card.wide .thumb { height: 100%; min-height: 220px; aspect-ratio: auto; }
 
-  .tips {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-    gap: 12px 24px;
-    margin: 0;
-    padding-block: 18px 40px;
-    border-top: 1px solid var(--line);
-    color: var(--text-dim);
-    font-size: 14px;
-    line-height: 1.55;
-  }
-  .tips dt { color: var(--text); margin-bottom: 2px; }
-  .tips dd { margin: 0; }
 
   .share-btn { margin-top: 16px; }
+  .lead {
+    max-width: 38em;
+    margin: 0;
+    color: var(--text-dim);
+    font-size: clamp(16px, 2.2vw, 19px);
+    line-height: 1.55;
+  }
+
+  /* 할로윈 시간표: 칠판에 한 줄씩 착착 나타나요 (모션 그래픽) */
+  .timetable { padding-block: 22px 26px; }
+  .tt-board {
+    position: relative;
+    overflow: hidden;
+    padding: 24px clamp(16px, 4vw, 36px) 22px;
+    border-radius: 20px;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(255, 138, 31, 0.16), transparent 45%),
+      radial-gradient(circle at 92% 100%, rgba(159, 240, 216, 0.08), transparent 50%),
+      #1d2b25;
+    box-shadow: inset 0 0 0 7px #4a3222, inset 0 0 0 9px #2a1c12, 0 18px 40px rgba(0, 0, 0, 0.35);
+  }
+  .tt-board h2 {
+    display: inline-block;
+    margin: 0 0 10px;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(34px, 6vw, 52px);
+    line-height: 1.1;
+    color: #f4f1e6;
+    text-shadow: 0 0 0.25em rgba(255, 255, 255, 0.25);
+    animation: ttWrite 1s steps(12) both;
+  }
+  .tt-board h2 b { color: var(--pumpkin); font-weight: 400; }
+  @keyframes ttWrite { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  .tt-list { margin: 0; padding: 0; list-style: none; }
+  .tt-list li {
+    display: grid;
+    grid-template-columns: 4.6em 2.2em 1fr;
+    align-items: center;
+    gap: 6px 14px;
+    padding: 10px 6px;
+    border-bottom: 2px dashed rgba(244, 241, 230, 0.16);
+    animation: ttIn 0.65s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+    animation-delay: calc(0.9s + var(--i) * 0.38s);
+  }
+  .tt-list li:last-child { border-bottom: 0; }
+  @keyframes ttIn { from { opacity: 0; transform: translateX(48px) rotate(1.5deg); filter: blur(5px); } to { opacity: 1; transform: none; filter: none; } }
+  .tt-no {
+    justify-self: start;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(244, 241, 230, 0.12);
+    color: var(--mint);
+    font-size: 15px;
+    white-space: nowrap;
+  }
+  .tt-icon {
+    font-size: 30px;
+    line-height: 1;
+    text-align: center;
+    animation: ttWobble 2.6s ease-in-out infinite;
+    animation-delay: calc(var(--i) * 0.4s);
+  }
+  @keyframes ttWobble { 50% { transform: rotate(-12deg) scale(1.12); } }
+  .tt-name {
+    font-family: var(--font-display);
+    font-size: clamp(26px, 4.6vw, 40px);
+    line-height: 1.1;
+    color: #f4f1e6;
+    overflow-wrap: anywhere;
+  }
+  .tt-list li.last .tt-name { color: var(--pumpkin); text-shadow: 0 0 0.3em rgba(255, 138, 31, 0.5); }
+  .tt-ghost {
+    position: absolute;
+    top: 18%;
+    left: 0;
+    font-size: 42px;
+    pointer-events: none;
+    opacity: 0.85;
+    animation: ttGhost 11s linear 2.5s infinite both;
+  }
+  @keyframes ttGhost {
+    0% { transform: translate(-80px, 0); }
+    25% { transform: translate(25vw, -14px); }
+    50% { transform: translate(50vw, 10px); }
+    75% { transform: translate(75vw, -12px); }
+    100% { transform: translate(110vw, 0); }
+  }
+  .tt-stamp {
+    position: absolute;
+    top: 20px;
+    right: clamp(14px, 3vw, 30px);
+    padding: 6px 12px;
+    border: 3px solid #ff5a6e;
+    border-radius: 10px;
+    color: #ff5a6e;
+    font-size: clamp(13px, 1.8vw, 17px);
+    letter-spacing: 0.12em;
+    transform: rotate(-10deg);
+    animation: ttStamp 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+    animation-delay: calc(0.9s + 5 * 0.38s + 0.3s);
+  }
+  @keyframes ttStamp { from { opacity: 0; transform: rotate(-10deg) scale(2.4); } to { opacity: 1; transform: rotate(-10deg) scale(1); } }
+  @media (max-width: 520px) {
+    .tt-stamp { position: static; display: inline-block; margin: 0 0 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tt-board h2, .tt-list li, .tt-icon, .tt-stamp { animation: none; }
+    .tt-ghost { display: none; }
+  }
 
   /* 비밀 게임: 비밀번호를 넣어야 무슨 게임인지 보여요 */
   .lock-face { display: none; }
@@ -207,7 +304,7 @@
   @keyframes lockShake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
   .game-card.opened { animation: cardOpen 0.9s ease; }
   @keyframes cardOpen { from { transform: scale(0.94) rotateY(70deg); filter: brightness(2); } to { transform: none; filter: none; } }
-  .relock { margin: 0 0 30px; text-align: right; }
+  .relock { margin: 8px 0 30px; text-align: right; }
   .relock button { border: 0; background: none; color: var(--text-dim); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; }
   @media (prefers-reduced-motion: reduce) { .lock-q, .game-card.opened { animation: none; } }
 
@@ -262,9 +359,25 @@
 <div class="wrap">
   <div class="intro">
     <h1>할로윈 게임 파티</h1>
-    <p>할로윈 밤, 비밀 게임 3개가 잠겨 있어요. 선생님이 알려 주는 비밀번호로 하나씩 열어 보세요!</p>
-    <button class="btn share-btn" id="shareBtn" type="button" hidden>📱 학생 기기로 열기</button>
   </div>
+
+  <section class="timetable" aria-labelledby="tt-title">
+    <div class="tt-board">
+      <h2 id="tt-title"><b>🎃</b> 할로윈 시간표</h2>
+      <p class="tt-stamp" aria-hidden="true">HAPPY HALLOWEEN</p>
+      <ol class="tt-list">
+        <li style="--i: 0"><span class="tt-no">1교시</span><span class="tt-icon" aria-hidden="true">🍫</span><span class="tt-name">초콜릿을 던져라</span></li>
+        <li style="--i: 1"><span class="tt-no">2교시</span><span class="tt-icon" aria-hidden="true">🧟</span><span class="tt-name">좀비를 이겨라</span></li>
+        <li style="--i: 2"><span class="tt-no">3교시</span><span class="tt-icon" aria-hidden="true">⚔️</span><span class="tt-name">할로윈 검투사</span></li>
+        <li style="--i: 3"><span class="tt-no">4교시</span><span class="tt-icon" aria-hidden="true">🧛</span><span class="tt-name">물리면 죽는다</span></li>
+        <li class="last" style="--i: 4"><span class="tt-no">5교시</span><span class="tt-icon" aria-hidden="true">🚪</span><span class="tt-name">6-3반 탈출기</span></li>
+      </ol>
+      <span class="tt-ghost" aria-hidden="true">👻</span>
+    </div>
+  </section>
+
+  <p class="lead">비밀 게임 3개가 잠겨 있어요. 선생님이 알려 주는 비밀번호로 하나씩 열어 보세요!</p>
+  <button class="btn share-btn" id="shareBtn" type="button" hidden>📱 학생 기기로 열기</button>
 
   <dialog class="share" id="shareDialog" aria-labelledby="shareTitle">
     <h2 id="shareTitle">학생 기기로 열기</h2>
@@ -372,20 +485,6 @@
     </article>
   </section>
 
-  <dl class="tips">
-    <div>
-      <dt>기록은 어디에 남나요?</dt>
-      <dd>혼자 하기 기록은 이 컴퓨터의 브라우저에만 저장돼요. 함께 하기는 선생님이 구글 시트를 연결하면 반 전체 기록이 한곳에 모여요.</dd>
-    </div>
-    <div>
-      <dt>큰 화면으로 하려면</dt>
-      <dd>게임 오른쪽 위 ⛶ 버튼으로 전체 화면을 켜요. TV나 전자칠판에 잘 맞아요.</dd>
-    </div>
-    <div>
-      <dt>소리 끄기</dt>
-      <dd>게임 오른쪽 위 🔊 버튼이나 M 키로 끄고 켤 수 있어요.</dd>
-    </div>
-  </dl>
   <p class="relock"><button id="relockBtn" type="button">🔒 이 기기에서 다시 잠그기 (선생님용)</button></p>
 </div>
 
