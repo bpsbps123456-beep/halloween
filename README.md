@@ -228,6 +228,17 @@ tests/                  자동 검사
 
 ## 자동 검사 (개발용)
 
+로컬 관리 폴더는 `C:\game\halloween`입니다. GitHub 저장소는 `bpsbps123456-beep/halloween`, 운영 브랜치는 `claude/peaceful-gauss-tlud71`입니다. 이 브랜치의 저장소 루트가 GitHub Pages에 자동 배포됩니다.
+
+로컬 미리보기:
+
+```powershell
+cd C:\game\halloween
+python -m http.server 8000
+```
+
+`http://localhost:8000`에서 확인한 뒤 같은 폴더에서 커밋·푸시합니다. 운영 주소는 https://bpsbps123456-beep.github.io/halloween/ 입니다.
+
 Node.js 18 이상이 있으면:
 
 ```bash
